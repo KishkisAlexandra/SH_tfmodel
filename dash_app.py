@@ -1,6 +1,8 @@
 # app.py
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
 
 st.set_page_config(
     page_title="Utility Benchmark Dashboard",
@@ -34,7 +36,7 @@ DEFAULT_COEFFS = {
 # ---- Функции расчёта ----
 def calculate_volumes(area_m2, occupants, profile, coeffs=DEFAULT_COEFFS, month=1):
     pf = profiles.get(profile, 1.0)
-    elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"]*occupants + 
+    elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"]*occupants +
             coeffs["elec_per_m2_kWh"]*area_m2)*pf
     water = coeffs["water_per_person_m3"]*occupants*pf
     hot_water = water*coeffs["hot_water_fraction"]
@@ -77,10 +79,10 @@ def calculate_costs(volumes, tariffs, heating_scenario="mid"):
     costs["total_monthly"] = round(sum(costs.values()),2)
     return costs
 
-# ---- Sidebar форма пользователя ----
+# ---- Sidebar ----
 with st.sidebar:
     st.header("Параметры вашего жилья")
-    month = st.selectbox("Месяц", list(range(1,13)), format_func=lambda x: 
+    month = st.selectbox("Месяц", list(range(1,13)), format_func=lambda x:
                          ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"][x-1])
     area_m2 = st.number_input("Площадь, м²", min_value=10.0, max_value=500.0, value=80.0)
     adults = st.number_input("Взрослые", min_value=0, max_value=10, value=2)
@@ -89,22 +91,26 @@ with st.sidebar:
     heating_type = st.selectbox("Тип отопления", ["central","gas","electric"], index=0)
     housing_type = st.selectbox("Тип жилья", ["квартира","дом"], index=0)
 
-# ---- Расчёт пользовательского профиля ----
+# ---- Расчёты ----
 occupants = adults + children
 user_volumes = calculate_volumes(area_m2, occupants, profile, month=month)
 user_costs = calculate_costs(user_volumes, DEFAULT_TARIFFS)
 
-# ---- Расчёт типового архетипа ----
 typical_volumes = calculate_volumes(area_m2, occupants, "average", month=month)
 typical_costs = calculate_costs(typical_volumes, DEFAULT_TARIFFS)
 
-# ---- Основной дашборд ----
+eco_total = calculate_costs(user_volumes, DEFAULT_TARIFFS, heating_scenario="low")["total_monthly"]
+average_total = typical_costs["total_monthly"]
+intensive_total = calculate_costs(user_volumes, DEFAULT_TARIFFS, heating_scenario="high")["total_monthly"]
+user_total = user_costs["total_monthly"]
+
+# ---- Дашборд ----
 st.title("🏠 Моделирование типового домохозяйства")
 st.subheader(f"Месяц: {month}")
 
 col1, col2 = st.columns(2)
 with col1:
-    st.metric("Ваши расходы (BYN/мес)", f"{user_costs['total_monthly']}")
+    st.metric("Ваши расходы (BYN/мес)", f"{user_total}")
     st.metric("Электроэнергия", f"{user_costs['electricity_cost']}")
     st.metric("Отопление", f"{user_costs['heating_cost']}")
 with col2:
@@ -112,26 +118,35 @@ with col2:
     st.metric("Электроэнергия", f"{typical_costs['electricity_cost']}")
     st.metric("Отопление", f"{typical_costs['heating_cost']}")
 
-# ---- Визуализация сравнения с типовым ----
-st.subheader("Сравнение вашего потребления с типовым (график)")
+# ---- Спидометр ----
+st.subheader("Итоговые расходы: где вы находитесь")
+fig_gauge = go.Figure(go.Indicator(
+    mode="gauge+number+delta",
+    value=user_total,
+    delta={'reference': average_total, 'increasing': {'color': "red"}},
+    gauge={
+        'axis': {'range': [eco_total, intensive_total]},
+        'bar': {'color': "blue"},
+        'steps': [
+            {'range': [eco_total, average_total], 'color': "lightgreen"},
+            {'range': [average_total, intensive_total], 'color': "lightcoral"}
+        ],
+        'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': user_total}
+    },
+    title={'text': "Итоговые расходы (BYN/мес)"}
+))
+st.plotly_chart(fig_gauge)
 
-compare_chart_df = pd.DataFrame({
-    "Ваши показатели": [
-        user_volumes["electricity_kWh"],
-        user_volumes["water_m3"],
-        user_volumes["hot_water_m3"],
-        user_volumes["sewage_m3"],
-        user_volumes["heating_Gcal_month_mid"],
-        user_costs["total_monthly"]
-    ],
-    "Типовые показатели": [
-        typical_volumes["electricity_kWh"],
-        typical_volumes["water_m3"],
-        typical_volumes["hot_water_m3"],
-        typical_volumes["sewage_m3"],
-        typical_volumes["heating_Gcal_month_mid"],
-        typical_costs["total_monthly"]
-    ]
-}, index=["Электроэнергия (kWh)", "Вода (m³)", "Горячая вода (m³)", "Канализация (m³)", "Отопление (Gcal)", "Итого (BYN)"])
+# ---- Пузырьковая диаграмма ----
+st.subheader("Сравнение расходов по услугам")
+bubble_df = pd.DataFrame({
+    "Услуга": ["Электроэнергия","Вода","Отопление"],
+    "Пользователь": [user_costs["electricity_cost"], user_costs["water_cost"], user_costs["heating_cost"]],
+    "Типовое": [typical_costs["electricity_cost"], typical_costs["water_cost"], typical_costs["heating_cost"]]
+})
+bubble_df_long = bubble_df.melt(id_vars="Услуга", value_vars=["Пользователь","Типовое"],
+                                var_name="Тип", value_name="Стоимость")
 
-st.bar_chart(compare_chart_df)
+fig_bubble = px.scatter(bubble_df_long, x="Услуга", y="Стоимость", size="Стоимость", color="Тип",
+                        size_max=60, title="Сравнение расходов по услугам")
+st.plotly_chart(fig_bubble)
