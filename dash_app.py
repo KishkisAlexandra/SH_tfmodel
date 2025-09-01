@@ -84,4 +84,54 @@ with st.sidebar:
                          ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"][x-1])
     area_m2 = st.number_input("Площадь, м²", min_value=10.0, max_value=500.0, value=80.0)
     adults = st.number_input("Взрослые", min_value=0, max_value=10, value=2)
-    children = st.numbe
+    children = st.number_input("Дети", min_value=0, max_value=10, value=1)
+    profile = st.selectbox("Профиль поведения", ["eco","average","intensive"], index=1)
+    heating_type = st.selectbox("Тип отопления", ["central","gas","electric"], index=0)
+    housing_type = st.selectbox("Тип жилья", ["квартира","дом"], index=0)
+
+# ---- Расчёт пользовательского профиля ----
+occupants = adults + children
+user_volumes = calculate_volumes(area_m2, occupants, profile, month=month)
+user_costs = calculate_costs(user_volumes, DEFAULT_TARIFFS)
+
+# ---- Расчёт типового архетипа ----
+typical_volumes = calculate_volumes(area_m2, occupants, "average", month=month)
+typical_costs = calculate_costs(typical_volumes, DEFAULT_TARIFFS)
+
+# ---- Основной дашборд ----
+st.title("🏠 Моделирование типового домохозяйства")
+st.subheader(f"Месяц: {month}")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Ваши расходы (BYN/мес)", f"{user_costs['total_monthly']}")
+    st.metric("Электроэнергия", f"{user_costs['electricity_cost']}")
+    st.metric("Отопление", f"{user_costs['heating_cost']}")
+with col2:
+    st.metric("Типовые расходы (BYN/мес)", f"{typical_costs['total_monthly']}")
+    st.metric("Электроэнергия", f"{typical_costs['electricity_cost']}")
+    st.metric("Отопление", f"{typical_costs['heating_cost']}")
+
+# ---- Визуализация сравнения с типовым ----
+st.subheader("Сравнение вашего потребления с типовым (график)")
+
+compare_chart_df = pd.DataFrame({
+    "Ваши показатели": [
+        user_volumes["electricity_kWh"],
+        user_volumes["water_m3"],
+        user_volumes["hot_water_m3"],
+        user_volumes["sewage_m3"],
+        user_volumes["heating_Gcal_month_mid"],
+        user_costs["total_monthly"]
+    ],
+    "Типовые показатели": [
+        typical_volumes["electricity_kWh"],
+        typical_volumes["water_m3"],
+        typical_volumes["hot_water_m3"],
+        typical_volumes["sewage_m3"],
+        typical_volumes["heating_Gcal_month_mid"],
+        typical_costs["total_monthly"]
+    ]
+}, index=["Электроэнергия (kWh)", "Вода (m³)", "Горячая вода (m³)", "Канализация (m³)", "Отопление (Gcal)", "Итого (BYN)"])
+
+st.bar_chart(compare_chart_df)
