@@ -1,545 +1,236 @@
-{
-  "nbformat": 4,
-  "nbformat_minor": 0,
-  "metadata": {
-    "colab": {
-      "provenance": [],
-      "authorship_tag": "ABX9TyMf/RAudLqsVJzXUIMDSV1j",
-      "include_colab_link": True
-    },
-    "kernelspec": {
-      "name": "python3",
-      "display_name": "Python 3"
-    },
-    "language_info": {
-      "name": "python"
-    }
-  },
-  "cells": [
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "view-in-github",
-        "colab_type": "text"
-      },
-      "source": [
-        "<a href=\"https://colab.research.google.com/github/KishkisAlexandra/SH_tfmodel/blob/main/app.py\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": 9,
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/"
-        },
-        "id": "35TfDY9ucCwt",
-        "outputId": "32be5dc6-b808-4ca1-8bd6-6a26ad5c8c89"
-      },
-      "outputs": [
-        {
-          "output_type": "stream",
-          "name": "stderr",
-          "text": [
-            "2025-09-01 09:08:39.735 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.737 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.740 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.741 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.742 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.743 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.744 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.745 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.746 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.747 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.750 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.751 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.752 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.753 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.753 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.754 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.755 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.756 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.756 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.757 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.757 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.758 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.759 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.759 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.760 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.761 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.761 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.762 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.763 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.763 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.764 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.765 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.765 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.766 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.766 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.767 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.768 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.768 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.769 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.770 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.770 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.771 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.771 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.772 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.772 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.773 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.774 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.774 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.775 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.776 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.777 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.778 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.778 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.779 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.779 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.780 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.781 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.781 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.782 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.783 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.783 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.784 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.784 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.785 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.786 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.786 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.787 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.787 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.788 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.789 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.789 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.790 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.791 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.791 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.792 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.793 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.793 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.794 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.794 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.795 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.796 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.796 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.797 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.797 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.798 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.798 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.799 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.800 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.800 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.801 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.801 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.802 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.803 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.803 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.804 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.805 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.805 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.806 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.806 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.807 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.807 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.808 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.809 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.809 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.810 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.810 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.811 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.812 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.812 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.813 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.814 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.814 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.815 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.815 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.816 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.817 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.817 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.818 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.818 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.819 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.820 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.820 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.821 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.822 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.822 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.823 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.824 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.824 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.825 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.825 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.826 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.827 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.827 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.828 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.828 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.829 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.830 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.830 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.831 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.831 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.832 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.833 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.833 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.834 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.834 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.836 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.836 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.837 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.838 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.838 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.839 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.840 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.841 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.841 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.842 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.843 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.843 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.845 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.846 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.847 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.848 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.848 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.849 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.850 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.853 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.885 Serialization of dataframe to Arrow table was unsuccessful. Applying automatic fixes for column types to make the dataframe Arrow-compatible.\n",
-            "Traceback (most recent call last):\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/streamlit/dataframe_util.py\", line 821, in convert_pandas_df_to_arrow_bytes\n",
-            "    table = pa.Table.from_pandas(df)\n",
-            "            ^^^^^^^^^^^^^^^^^^^^^^^^\n",
-            "  File \"pyarrow/table.pxi\", line 4751, in pyarrow.lib.Table.from_pandas\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/pyarrow/pandas_compat.py\", line 625, in dataframe_to_arrays\n",
-            "    arrays = [convert_column(c, f)\n",
-            "              ^^^^^^^^^^^^^^^^^^^^\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/pyarrow/pandas_compat.py\", line 612, in convert_column\n",
-            "    raise e\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/pyarrow/pandas_compat.py\", line 606, in convert_column\n",
-            "    result = pa.array(col, type=type_, from_pandas=True, safe=safe)\n",
-            "             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
-            "  File \"pyarrow/array.pxi\", line 360, in pyarrow.lib.array\n",
-            "  File \"pyarrow/array.pxi\", line 87, in pyarrow.lib._ndarray_to_array\n",
-            "  File \"pyarrow/error.pxi\", line 92, in pyarrow.lib.check_status\n",
-            "pyarrow.lib.ArrowInvalid: (\"Could not convert '-' with type str: tried to convert to double\", 'Conversion failed for column Тариф (BYN) with type object')\n",
-            "2025-09-01 09:08:39.891 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.896 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.897 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.898 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.899 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.899 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.900 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.901 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.902 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.902 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.904 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.904 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.905 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.905 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.907 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.908 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.909 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.910 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.910 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.911 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.912 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.912 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.913 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:39.986 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.206 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.207 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.209 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.210 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.212 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.213 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.214 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.217 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.218 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.219 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.220 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.221 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.222 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.222 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.223 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.224 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.224 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.225 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.226 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.226 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.227 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.228 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.229 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.230 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.230 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.231 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.232 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.233 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.234 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.235 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.236 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.237 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.237 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.238 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.239 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.240 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.241 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.242 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.242 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 09:08:40.246 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n"
-          ]
-        },
-        {
-          "output_type": "execute_result",
-          "data": {
-            "text/plain": [
-              "DeltaGenerator()"
-            ]
-          },
-          "metadata": {},
-          "execution_count": 9
-        }
-      ],
-      "source": [
-        "# app.py\n",
-        "import streamlit as st\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "import matplotlib.pyplot as plt\n",
-        "from io import BytesIO\n",
-        "from datetime import datetime\n",
-        "\n",
-        "st.set_page_config(page_title=\"Utility Benchmark Demo — Typical Households\", page_icon=\"🏠\", layout=\"wide\")\n",
-        "\n",
-        "# ---- Helper / model functions ----\n",
-        "profiles = {\"eco\": 0.85, \"average\": 1.0, \"intensive\": 1.15}\n",
-        "\n",
-        "# Default tariffs (pre-filled for Minsk as agreed)\n",
-        "DEFAULT_TARIFFS = {\n",
-        "    \"electricity_BYN_per_kWh\": 0.254,     # BYN / kWh\n",
-        "    \"water_BYN_per_m3\": 1.7858,          # BYN / m3 (cold+hot combined tariff used for simplicity)\n",
-        "    \"sewage_BYN_per_m3\": 0.9586,         # BYN / m3\n",
-        "    \"heating_BYN_per_Gcal\": 135.0,       # BYN / Gcal\n",
-        "    \"gas_BYN_per_m3\": 0.10,              # BYN / m3 (placeholder, rarely used if central heating)\n",
-        "    \"fixed_fees_BYN\": 5.0                # BYN / month (administration, trash etc.)\n",
-        "}\n",
-        "\n",
-        "# Coefficients (tweakable)\n",
-        "DEFAULT_COEFFS = {\n",
-        "    \"elec_base_kWh\": 40.0,\n",
-        "    \"elec_per_person_kWh\": 35.0,\n",
-        "    \"elec_per_m2_kWh\": 0.25,\n",
-        "    \"water_per_person_m3\": 3.5,\n",
-        "    \"hot_water_fraction\": 0.45,\n",
-        "    \"heating_Gcal_per_m2_season_low\": 0.08,\n",
-        "    \"heating_Gcal_per_m2_season_mid\": 0.10,\n",
-        "    \"heating_Gcal_per_m2_season_high\": 0.12,\n",
-        "    \"heating_season_months\": 7.0\n",
-        "}\n",
-        "\n",
-        "def calculate_volumes(area_m2: float, occupants: int, profile: str, coeffs: dict = DEFAULT_COEFFS):\n",
-        "    pf = profiles.get(profile, 1.0)\n",
-        "    elec = (coeffs[\"elec_base_kWh\"] + coeffs[\"elec_per_person_kWh\"] * occupants + coeffs[\"elec_per_m2_kWh\"] * area_m2) * pf\n",
-        "    water = coeffs[\"water_per_person_m3\"] * occupants * pf\n",
-        "    hot_water = water * coeffs[\"hot_water_fraction\"]\n",
-        "    sewage = water\n",
-        "    G_low = coeffs[\"heating_Gcal_per_m2_season_low\"] * area_m2\n",
-        "    G_mid = coeffs[\"heating_Gcal_per_m2_season_mid\"] * area_m2\n",
-        "    G_high = coeffs[\"heating_Gcal_per_m2_season_high\"] * area_m2\n",
-        "    heat_monthly_low = G_low / coeffs[\"heating_season_months\"]\n",
-        "    heat_monthly_mid = G_mid / coeffs[\"heating_season_months\"]\n",
-        "    heat_monthly_high = G_high / coeffs[\"heating_season_months\"]\n",
-        "    volumes = {\n",
-        "        \"electricity_kWh\": round(elec, 1),\n",
-        "        \"water_m3\": round(water, 2),\n",
-        "        \"hot_water_m3\": round(hot_water, 2),\n",
-        "        \"sewage_m3\": round(sewage, 2),\n",
-        "        \"heating_Gcal_month_low\": round(heat_monthly_low, 3),\n",
-        "        \"heating_Gcal_month_mid\": round(heat_monthly_mid, 3),\n",
-        "        \"heating_Gcal_month_high\": round(heat_monthly_high, 3)\n",
-        "    }\n",
-        "    return volumes\n",
-        "\n",
-        "def calculate_costs(volumes: dict, tariffs: dict, heating_scenario=\"mid\"):\n",
-        "    elec_cost = volumes[\"electricity_kWh\"] * tariffs[\"electricity_BYN_per_kWh\"]\n",
-        "    water_cost = volumes[\"water_m3\"] * tariffs[\"water_BYN_per_m3\"]\n",
-        "    sewage_cost = volumes[\"sewage_m3\"] * tariffs[\"sewage_BYN_per_m3\"]\n",
-        "    if heating_scenario == \"low\":\n",
-        "        heat_cost = volumes[\"heating_Gcal_month_low\"] * tariffs[\"heating_BYN_per_Gcal\"]\n",
-        "    elif heating_scenario == \"high\":\n",
-        "        heat_cost = volumes[\"heating_Gcal_month_high\"] * tariffs[\"heating_BYN_per_Gcal\"]\n",
-        "    else:\n",
-        "        heat_cost = volumes[\"heating_Gcal_month_mid\"] * tariffs[\"heating_BYN_per_Gcal\"]\n",
-        "    gas_cost = 0.0\n",
-        "    fixed = tariffs.get(\"fixed_fees_BYN\", 0.0)\n",
-        "    costs = {\n",
-        "        \"electricity_cost\": round(elec_cost, 2),\n",
-        "        \"water_cost\": round(water_cost, 2),\n",
-        "        \"sewage_cost\": round(sewage_cost, 2),\n",
-        "        \"heating_cost\": round(heat_cost, 2),\n",
-        "        \"gas_cost\": round(gas_cost, 2),\n",
-        "        \"fixed_fees\": round(fixed, 2)\n",
-        "    }\n",
-        "    costs[\"total_monthly\"] = round(sum(costs.values()), 2)\n",
-        "    return costs\n",
-        "\n",
-        "# ---- UI layout ----\n",
-        "st.title(\"🏠 Демо: Моделирование типовых домохозяйств — расчёт коммунальных платежей\")\n",
-        "st.markdown(\"\"\"\n",
-        "**Цель:** быстро моделировать объёмы потребления и месячные расходы для типовых домохозяйств,\n",
-        "показывая диапазон (eco / average / intensive) и позволяя калибровать модель по реальной квитанции.\n",
-        "\"\"\")\n",
-        "\n",
-        "# Left column: inputs\n",
-        "with st.sidebar:\n",
-        "    st.header(\"Настройки модели\")\n",
-        "    st.subheader(\"Архетип (ввод)\")\n",
-        "    area_m2 = st.number_input(\"Площадь, м²\", min_value=10.0, max_value=1000.0, value=90.0, step=1.0)\n",
-        "    adults = st.number_input(\"Взрослые\", min_value=0, max_value=10, value=2, step=1)\n",
-        "    children = st.number_input(\"Дети\", min_value=0, max_value=10, value=2, step=1)\n",
-        "    profile = st.selectbox(\"Профиль поведения\", options=[\"eco\", \"average\", \"intensive\"], index=1, format_func=lambda x: x.capitalize())\n",
-        "    heating_type = st.selectbox(\"Тип отопления (информативно)\", options=[\"central (district)\", \"gas boiler\", \"electric heating\"], index=0)\n",
-        "    st.markdown(\"---\")\n",
-        "    st.subheader(\"Тарифы (BYN) — редактируемые\")\n",
-        "    t_elec = st.number_input(\"Электроэнергия, BYN / kWh\", value=DEFAULT_TARIFFS[\"electricity_BYN_per_kWh\"], format=\"%.6f\")\n",
-        "    t_water = st.number_input(\"Вода, BYN / m³\", value=DEFAULT_TARIFFS[\"water_BYN_per_m3\"], format=\"%.6f\")\n",
-        "    t_sewage = st.number_input(\"Канализация, BYN / m³\", value=DEFAULT_TARIFFS[\"sewage_BYN_per_m3\"], format=\"%.6f\")\n",
-        "    t_heat = st.number_input(\"Отопление, BYN / Gcal\", value=DEFAULT_TARIFFS[\"heating_BYN_per_Gcal\"], format=\"%.2f\")\n",
-        "    t_gas = st.number_input(\"Газ, BYN / m³ (если актуально)\", value=DEFAULT_TARIFFS[\"gas_BYN_per_m3\"], format=\"%.6f\")\n",
-        "    t_fixed = st.number_input(\"Фикс. платежы, BYN / мес\", value=DEFAULT_TARIFFS[\"fixed_fees_BYN\"], format=\"%.2f\")\n",
-        "    st.markdown(\"---\")\n",
-        "    st.subheader(\"Коэффициенты (опционально)\")\n",
-        "    elec_base = st.number_input(\"Elec: базовый kWh (аппараты)\", value=DEFAULT_COEFFS[\"elec_base_kWh\"])\n",
-        "    elec_pp = st.number_input(\"Elec: kWh на человека/мес\", value=DEFAULT_COEFFS[\"elec_per_person_kWh\"])\n",
-        "    elec_pm2 = st.number_input(\"Elec: kWh на м²/мес\", value=DEFAULT_COEFFS[\"elec_per_m2_kWh\"])\n",
-        "    water_pp = st.number_input(\"Вода: m³ на человека/мес\", value=DEFAULT_COEFFS[\"water_per_person_m3\"])\n",
-        "    st.markdown(\"---\")\n",
-        "    st.write(\"Справочно: источники тарифов (Минск):\")\n",
-        "    st.write(\"- Energosbyt / Минскэнергосбыт (электро) — [energosbyt.by]\")\n",
-        "    st.write(\"- Минскводоканал (вода, канализация) — [minskvodokanal.by]\")\n",
-        "    st.write(\"**Нажмите 'Добавить в отчет'**, чтобы сохранить расчёт в таблицу справа.\")\n",
-        "\n",
-        "# Build tariffs and coeffs dicts from sidebar inputs\n",
-        "tariffs = {\n",
-        "    \"electricity_BYN_per_kWh\": float(t_elec),\n",
-        "    \"water_BYN_per_m3\": float(t_water),\n",
-        "    \"sewage_BYN_per_m3\": float(t_sewage),\n",
-        "    \"heating_BYN_per_Gcal\": float(t_heat),\n",
-        "    \"gas_BYN_per_m3\": float(t_gas),\n",
-        "    \"fixed_fees_BYN\": float(t_fixed)\n",
-        "}\n",
-        "coeffs = {\n",
-        "    \"elec_base_kWh\": float(elec_base),\n",
-        "    \"elec_per_person_kWh\": float(elec_pp),\n",
-        "    \"elec_per_m2_kWh\": float(elec_pm2),\n",
-        "    \"water_per_person_m3\": float(water_pp),\n",
-        "    \"hot_water_fraction\": DEFAULT_COEFFS[\"hot_water_fraction\"],\n",
-        "    \"heating_Gcal_per_m2_season_low\": DEFAULT_COEFFS[\"heating_Gcal_per_m2_season_low\"],\n",
-        "    \"heating_Gcal_per_m2_season_mid\": DEFAULT_COEFFS[\"heating_Gcal_per_m2_season_mid\"],\n",
-        "    \"heating_Gcal_per_m2_season_high\": DEFAULT_COEFFS[\"heating_Gcal_per_m2_season_high\"],\n",
-        "    \"heating_season_months\": DEFAULT_COEFFS[\"heating_season_months\"]\n",
-        "}\n",
-        "\n",
-        "# Main area: compute and show\n",
-        "st.header(\"Результат расчёта для архетипа\")\n",
-        "occupants = adults + children\n",
-        "volumes = calculate_volumes(area_m2, occupants, profile, coeffs)\n",
-        "costs = calculate_costs(volumes, tariffs, heating_scenario=\"mid\")\n",
-        "\n",
-        "col1, col2 = st.columns([2, 1])\n",
-        "with col1:\n",
-        "    st.subheader(f\"Архетип: {area_m2} м², {adults} взрослых, {children} детей — профиль: {profile}\")\n",
-        "    st.markdown(\"**Объёмы (оценка)**\")\n",
-        "    vol_table = {\n",
-        "        \"Параметр\": [\"Электричество (kWh/мес)\", \"Вода (m³/мес)\", \"Горячая вода (m³/мес)\", \"Канализация (m³/мес)\",\n",
-        "                     \"Отопление (Gcal/мес, mid)\"],\n",
-        "        \"Значение\": [volumes[\"electricity_kWh\"], volumes[\"water_m3\"], volumes[\"hot_water_m3\"], volumes[\"sewage_m3\"], volumes[\"heating_Gcal_month_mid\"]]\n",
-        "    }\n",
-        "    st.table(pd.DataFrame(vol_table))\n",
-        "\n",
-        "    st.markdown(\"**Детализация стоимости (BYN / мес)**\")\n",
-        "    cost_df = pd.DataFrame([\n",
-        "        [\"Электроэнергия\", f\"{volumes['electricity_kWh']} kWh\", tariffs[\"electricity_BYN_per_kWh\"], costs[\"electricity_cost\"]],\n",
-        "        [\"Вода (холод+горяч)\", f\"{volumes['water_m3']} m³\", tariffs[\"water_BYN_per_m3\"], costs[\"water_cost\"]],\n",
-        "        [\"Канализация\", f\"{volumes['sewage_m3']} m³\", tariffs[\"sewage_BYN_per_m3\"], costs[\"sewage_cost\"]],\n",
-        "        [\"Отопление (mid)\", f\"{volumes['heating_Gcal_month_mid']} Gcal\", tariffs[\"heating_BYN_per_Gcal\"], costs[\"heating_cost\"]],\n",
-        "        [\"Газ (если есть)\", \"-\", tariffs[\"gas_BYN_per_m3\"], costs[\"gas_cost\"]],\n",
-        "        [\"Фикс. платежи\", \"-\", \"-\", costs[\"fixed_fees\"]],\n",
-        "        [\"Итого\", \"-\", \"-\", costs[\"total_monthly\"]]\n",
-        "    ], columns=[\"Услуга\", \"Объём\", \"Тариф (BYN)\", \"Стоимость (BYN)\"])\n",
-        "    st.dataframe(cost_df.style.format({2: \"{:.4f}\", 3: \"{:.2f}\"}), height=300)\n",
-        "\n",
-        "with col2:\n",
-        "    st.subheader(\"Ключевые метрики\")\n",
-        "    st.metric(\"Итого (BYN/мес)\", f\"{costs['total_monthly']:.2f}\")\n",
-        "    st.metric(\"Электроэнергия (BYN)\", f\"{costs['electricity_cost']:.2f}\")\n",
-        "    st.metric(\"Отопление (BYN)\", f\"{costs['heating_cost']:.2f}\")\n",
-        "    st.markdown(\"**Диапазон для отопления (Gcal/мес)**\")\n",
-        "    st.write(f\"low: {volumes['heating_Gcal_month_low']}  mid: {volumes['heating_Gcal_month_mid']}  high: {volumes['heating_Gcal_month_high']}\")\n",
-        "\n",
-        "# Plot cost breakdown\n",
-        "st.subheader(\"Визуализация: распределение расходов\")\n",
-        "plot_df = cost_df[cost_df[\"Услуга\"] != \"Итого\"].copy()\n",
-        "plot_df = plot_df.set_index(\"Услуга\")\n",
-        "fig, ax = plt.subplots(figsize=(8,4))\n",
-        "plot_df[\"Стоимость (BYN)\"].astype(float).plot(kind='bar', ax=ax)\n",
-        "ax.set_ylabel(\"BYN / месяц\")\n",
-        "ax.set_xticklabels(plot_df.index, rotation=30, ha='right')\n",
-        "st.pyplot(fig)\n",
-        "\n",
-        "# ---- multi-record report builder ----\n",
-        "if 'report' not in st.session_state:\n",
-        "    st.session_state.report = []\n",
-        "\n",
-        "st.markdown(\"---\")\n",
-        "st.subheader(\"Добавить расчёт в отчет (собрать несколько архетипов)\")\n",
-        "\n",
-        "name = st.text_input(\"Имя записи (например: Minsk - 90m² - 4pers)\", value=f\"Minsk_{int(area_m2)}m2_{occupants}occ\")\n",
-        "if st.button(\"Добавить в отчет\"):\n",
-        "    rec = {\n",
-        "        \"name\": name,\n",
-        "        \"area_m2\": area_m2,\n",
-        "        \"adults\": adults,\n",
-        "        \"children\": children,\n",
-        "        \"profile\": profile,\n",
-        "        \"heating_type\": heating_type,\n",
-        "        \"electricity_kWh\": volumes[\"electricity_kWh\"],\n",
-        "        \"water_m3\": volumes[\"water_m3\"],\n",
-        "        \"heating_Gcal_mid\": volumes[\"heating_Gcal_month_mid\"],\n",
-        "        \"total_BYN\": costs[\"total_monthly\"],\n",
-        "        \"timestamp\": datetime.utcnow().isoformat()\n",
-        "    }\n",
-        "    st.session_state.report.append(rec)\n",
-        "    st.success(\"Запись добавлена в отчёт\")\n",
-        "\n",
-        "if st.session_state.report:\n",
-        "    st.markdown(\"**Отчет — текущие записи**\")\n",
-        "    report_df = pd.DataFrame(st.session_state.report)\n",
-        "    st.dataframe(report_df, height=200)\n",
-        "    csv = report_df.to_csv(index=False).encode('utf-8')\n",
-        "    st.download_button(\"Скачать CSV отчета\", data=csv, file_name=f\"utility_report_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.csv\", mime=\"text/csv\")\n",
-        "\n",
-        "# ---- small guide / calibration ----\n",
-        "st.markdown(\"---\")\n",
-        "with st.expander(\"Как откалибровать модель на реальной квитанции (5 минут)\"):\n",
-        "    st.write(\"\"\"\n",
-        "    1. Возьмите одну реальную квитанцию (поквартальная или помесячная) и найдите:\n",
-        "       - объем электроэнергии (kWh) или сумму по электроэнергии,\n",
-        "       - объем воды (m³),\n",
-        "       - сумму за отопление (или объем в Гкал, если указан).\n",
-        "    2. Введите в форму площадь и количество проживающих.\n",
-        "    3. Нажмите \"Добавить в отчет\" — затем скачайте CSV.\n",
-        "    4. Для подгонки: вычислите коэффициент scale = (реальная сумма / модельная сумма).\n",
-        "       - Можно применить scale к elec_per_person_kWh или редактировать elec_base_kWh / elec_per_m2_kWh.\n",
-        "    5. После подгонки модель даст прогнозы на 12 месяцев и диапазоны (eco/avg/int).\n",
-        "    \"\"\")\n",
-        "    st.write(\"Если нужно, я могу подготовить автоматическую процедуру калибровки по одной квитанции (включая оптимизацию коэффициентов).\")\n",
-        "\n",
-        "st.markdown(\"---\")\n",
-        "st.caption(\"Разработано как демонстрация модели 'типовых домохозяйств'. Тарифы предварительно заполнены для Минска на основе источников Energosbyt / Minskvodokanal. Для реальных деплоев требуется согласование и проверка тарифных формул (особенно для отопления и субсидий).\")"
-      ]
-    }
-  ]
+# app.py
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from io import BytesIO
+from datetime import datetime
+
+st.set_page_config(page_title="Utility Benchmark Demo — Typical Households", page_icon="🏠", layout="wide")
+
+# ---- Helper / model functions ----
+profiles = {"eco": 0.85, "average": 1.0, "intensive": 1.15}
+
+# Default tariffs (pre-filled for Minsk as agreed)
+DEFAULT_TARIFFS = {
+    "electricity_BYN_per_kWh": 0.254,     # BYN / kWh
+    "water_BYN_per_m3": 1.7858,          # BYN / m3 (cold+hot combined tariff used for simplicity)
+    "sewage_BYN_per_m3": 0.9586,         # BYN / m3
+    "heating_BYN_per_Gcal": 135.0,       # BYN / Gcal
+    "gas_BYN_per_m3": 0.10,              # BYN / m3 (placeholder, rarely used if central heating)
+    "fixed_fees_BYN": 5.0                # BYN / month (administration, trash etc.)
 }
+
+# Coefficients (tweakable)
+DEFAULT_COEFFS = {
+    "elec_base_kWh": 40.0,
+    "elec_per_person_kWh": 35.0,
+    "elec_per_m2_kWh": 0.25,
+    "water_per_person_m3": 3.5,
+    "hot_water_fraction": 0.45,
+    "heating_Gcal_per_m2_season_low": 0.08,
+    "heating_Gcal_per_m2_season_mid": 0.10,
+    "heating_Gcal_per_m2_season_high": 0.12,
+    "heating_season_months": 7.0
+}
+
+def calculate_volumes(area_m2: float, occupants: int, profile: str, coeffs: dict = DEFAULT_COEFFS):
+    pf = profiles.get(profile, 1.0)
+    elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"] * occupants + coeffs["elec_per_m2_kWh"] * area_m2) * pf
+    water = coeffs["water_per_person_m3"] * occupants * pf
+    hot_water = water * coeffs["hot_water_fraction"]
+    sewage = water
+    G_low = coeffs["heating_Gcal_per_m2_season_low"] * area_m2
+    G_mid = coeffs["heating_Gcal_per_m2_season_mid"] * area_m2
+    G_high = coeffs["heating_Gcal_per_m2_season_high"] * area_m2
+    heat_monthly_low = G_low / coeffs["heating_season_months"]
+    heat_monthly_mid = G_mid / coeffs["heating_season_months"]
+    heat_monthly_high = G_high / coeffs["heating_season_months"]
+    volumes = {
+        "electricity_kWh": round(elec, 1),
+        "water_m3": round(water, 2),
+        "hot_water_m3": round(hot_water, 2),
+        "sewage_m3": round(sewage, 2),
+        "heating_Gcal_month_low": round(heat_monthly_low, 3),
+        "heating_Gcal_month_mid": round(heat_monthly_mid, 3),
+        "heating_Gcal_month_high": round(heat_monthly_high, 3)
+    }
+    return volumes
+
+def calculate_costs(volumes: dict, tariffs: dict, heating_scenario="mid"):
+    elec_cost = volumes["electricity_kWh"] * tariffs["electricity_BYN_per_kWh"]
+    water_cost = volumes["water_m3"] * tariffs["water_BYN_per_m3"]
+    sewage_cost = volumes["sewage_m3"] * tariffs["sewage_BYN_per_m3"]
+    if heating_scenario == "low":
+        heat_cost = volumes["heating_Gcal_month_low"] * tariffs["heating_BYN_per_Gcal"]
+    elif heating_scenario == "high":
+        heat_cost = volumes["heating_Gcal_month_high"] * tariffs["heating_BYN_per_Gcal"]
+    else:
+        heat_cost = volumes["heating_Gcal_month_mid"] * tariffs["heating_BYN_per_Gcal"]
+    gas_cost = 0.0
+    fixed = tariffs.get("fixed_fees_BYN", 0.0)
+    costs = {
+        "electricity_cost": round(elec_cost, 2),
+        "water_cost": round(water_cost, 2),
+        "sewage_cost": round(sewage_cost, 2),
+        "heating_cost": round(heat_cost, 2),
+        "gas_cost": round(gas_cost, 2),
+        "fixed_fees": round(fixed, 2)
+    }
+    costs["total_monthly"] = round(sum(costs.values()), 2)
+    return costs
+
+# ---- UI layout ----
+st.title("🏠 Демо: Моделирование типовых домохозяйств — расчёт коммунальных платежей")
+st.markdown("""
+**Цель:** быстро моделировать объёмы потребления и месячные расходы для типовых домохозяйств,
+показывая диапазон (eco / average / intensive) и позволяя калибровать модель по реальной квитанции.
+""")
+
+# Left column: inputs
+with st.sidebar:
+    st.header("Настройки модели")
+    st.subheader("Архетип (ввод)")
+    area_m2 = st.number_input("Площадь, м²", min_value=10.0, max_value=1000.0, value=90.0, step=1.0)
+    adults = st.number_input("Взрослые", min_value=0, max_value=10, value=2, step=1)
+    children = st.number_input("Дети", min_value=0, max_value=10, value=2, step=1)
+    profile = st.selectbox("Профиль поведения", options=["eco", "average", "intensive"], index=1, format_func=lambda x: x.capitalize())
+    heating_type = st.selectbox("Тип отопления (информативно)", options=["central (district)", "gas boiler", "electric heating"], index=0)
+    st.markdown("---")
+    st.subheader("Тарифы (BYN) — редактируемые")
+    t_elec = st.number_input("Электроэнергия, BYN / kWh", value=DEFAULT_TARIFFS["electricity_BYN_per_kWh"], format="%.6f")
+    t_water = st.number_input("Вода, BYN / m³", value=DEFAULT_TARIFFS["water_BYN_per_m3"], format="%.6f")
+    t_sewage = st.number_input("Канализация, BYN / m³", value=DEFAULT_TARIFFS["sewage_BYN_per_m3"], format="%.6f")
+    t_heat = st.number_input("Отопление, BYN / Gcal", value=DEFAULT_TARIFFS["heating_BYN_per_Gcal"], format="%.2f")
+    t_gas = st.number_input("Газ, BYN / m³ (если актуально)", value=DEFAULT_TARIFFS["gas_BYN_per_m3"], format="%.6f")
+    t_fixed = st.number_input("Фикс. платежы, BYN / мес", value=DEFAULT_TARIFFS["fixed_fees_BYN"], format="%.2f")
+    st.markdown("---")
+    st.subheader("Коэффициенты (опционально)")
+    elec_base = st.number_input("Elec: базовый kWh (аппараты)", value=DEFAULT_COEFFS["elec_base_kWh"])
+    elec_pp = st.number_input("Elec: kWh на человека/мес", value=DEFAULT_COEFFS["elec_per_person_kWh"])
+    elec_pm2 = st.number_input("Elec: kWh на м²/мес", value=DEFAULT_COEFFS["elec_per_m2_kWh"])
+    water_pp = st.number_input("Вода: m³ на человека/мес", value=DEFAULT_COEFFS["water_per_person_m3"])
+    st.markdown("---")
+    st.write("Справочно: источники тарифов (Минск):")
+    st.write("- Energosbyt / Минскэнергосбыт (электро) — [energosbyt.by]")
+    st.write("- Минскводоканал (вода, канализация) — [minskvodokanal.by]")
+    st.write("**Нажмите 'Добавить в отчет'**, чтобы сохранить расчёт в таблицу справа.")
+
+# Build tariffs and coeffs dicts from sidebar inputs
+tariffs = {
+    "electricity_BYN_per_kWh": float(t_elec),
+    "water_BYN_per_m3": float(t_water),
+    "sewage_BYN_per_m3": float(t_sewage),
+    "heating_BYN_per_Gcal": float(t_heat),
+    "gas_BYN_per_m3": float(t_gas),
+    "fixed_fees_BYN": float(t_fixed)
+}
+coeffs = {
+    "elec_base_kWh": float(elec_base),
+    "elec_per_person_kWh": float(elec_pp),
+    "elec_per_m2_kWh": float(elec_pm2),
+    "water_per_person_m3": float(water_pp),
+    "hot_water_fraction": DEFAULT_COEFFS["hot_water_fraction"],
+    "heating_Gcal_per_m2_season_low": DEFAULT_COEFFS["heating_Gcal_per_m2_season_low"],
+    "heating_Gcal_per_m2_season_mid": DEFAULT_COEFFS["heating_Gcal_per_m2_season_mid"],
+    "heating_Gcal_per_m2_season_high": DEFAULT_COEFFS["heating_Gcal_per_m2_season_high"],
+    "heating_season_months": DEFAULT_COEFFS["heating_season_months"]
+}
+
+# Main area: compute and show
+st.header("Результат расчёта для архетипа")
+occupants = adults + children
+volumes = calculate_volumes(area_m2, occupants, profile, coeffs)
+costs = calculate_costs(volumes, tariffs, heating_scenario="mid")
+
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.subheader(f"Архетип: {area_m2} м², {adults} взрослых, {children} детей — профиль: {profile}")
+    st.markdown("**Объёмы (оценка)**")
+    vol_table = {
+        "Параметр": ["Электричество (kWh/мес)", "Вода (m³/мес)", "Горячая вода (m³/мес)", "Канализация (m³/мес)",
+                     "Отопление (Gcal/мес, mid)"],
+        "Значение": [volumes["electricity_kWh"], volumes["water_m3"], volumes["hot_water_m3"], volumes["sewage_m3"], volumes["heating_Gcal_month_mid"]]
+    }
+    st.table(pd.DataFrame(vol_table))
+
+    st.markdown("**Детализация стоимости (BYN / мес)**")
+    cost_df = pd.DataFrame([
+        ["Электроэнергия", f"{volumes['electricity_kWh']} kWh", tariffs["electricity_BYN_per_kWh"], costs["electricity_cost"]],
+        ["Вода (холод+горяч)", f"{volumes['water_m3']} m³", tariffs["water_BYN_per_m3"], costs["water_cost"]],
+        ["Канализация", f"{volumes['sewage_m3']} m³", tariffs["sewage_BYN_per_m3"], costs["sewage_cost"]],
+        ["Отопление (mid)", f"{volumes['heating_Gcal_month_mid']} Gcal", tariffs["heating_BYN_per_Gcal"], costs["heating_cost"]],
+        ["Газ (если есть)", "-", tariffs["gas_BYN_per_m3"], costs["gas_cost"]],
+        ["Фикс. платежи", "-", "-", costs["fixed_fees"]],
+        ["Итого", "-", "-", costs["total_monthly"]]
+    ], columns=["Услуга", "Объём", "Тариф (BYN)", "Стоимость (BYN)"])
+    st.dataframe(cost_df.style.format({2: "{:.4f}", 3: "{:.2f}"}), height=300)
+
+with col2:
+    st.subheader("Ключевые метрики")
+    st.metric("Итого (BYN/мес)", f"{costs['total_monthly']:.2f}")
+    st.metric("Электроэнергия (BYN)", f"{costs['electricity_cost']:.2f}")
+    st.metric("Отопление (BYN)", f"{costs['heating_cost']:.2f}")
+    st.markdown("**Диапазон для отопления (Gcal/мес)**")
+    st.write(f"low: {volumes['heating_Gcal_month_low']}  mid: {volumes['heating_Gcal_month_mid']}  high: {volumes['heating_Gcal_month_high']}")
+
+# Plot cost breakdown
+st.subheader("Визуализация: распределение расходов")
+plot_df = cost_df[cost_df["Услуга"] != "Итого"].copy()
+plot_df = plot_df.set_index("Услуга")
+fig, ax = plt.subplots(figsize=(8,4))
+plot_df["Стоимость (BYN)"].astype(float).plot(kind='bar', ax=ax)
+ax.set_ylabel("BYN / месяц")
+ax.set_xticklabels(plot_df.index, rotation=30, ha='right')
+st.pyplot(fig)
+
+# ---- multi-record report builder ----
+if 'report' not in st.session_state:
+    st.session_state.report = []
+
+st.markdown("---")
+st.subheader("Добавить расчёт в отчет (собрать несколько архетипов)")
+
+name = st.text_input("Имя записи (например: Minsk - 90m² - 4pers)", value=f"Minsk_{int(area_m2)}m2_{occupants}occ")
+if st.button("Добавить в отчет"):
+    rec = {
+        "name": name,
+        "area_m2": area_m2,
+        "adults": adults,
+        "children": children,
+        "profile": profile,
+        "heating_type": heating_type,
+        "electricity_kWh": volumes["electricity_kWh"],
+        "water_m3": volumes["water_m3"],
+        "heating_Gcal_mid": volumes["heating_Gcal_month_mid"],
+        "total_BYN": costs["total_monthly"],
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    st.session_state.report.append(rec)
+    st.success("Запись добавлена в отчёт")
+
+if st.session_state.report:
+    st.markdown("**Отчет — текущие записи**")
+    report_df = pd.DataFrame(st.session_state.report)
+    st.dataframe(report_df, height=200)
+    csv = report_df.to_csv(index=False).encode('utf-8')
+    st.download_button("Скачать CSV отчета", data=csv, file_name=f"utility_report_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.csv", mime="text/csv")
+
+# ---- small guide / calibration ----
+st.markdown("---")
+with st.expander("Как откалибровать модель на реальной квитанции (5 минут)"):
+    st.write("""
+    1. Возьмите одну реальную квитанцию (поквартальная или помесячная) и найдите:
+       - объем электроэнергии (kWh) или сумму по электроэнергии,
+       - объем воды (m³),
+       - сумму за отопление (или объем в Гкал, если указан).
+    2. Введите в форму площадь и количество проживающих.
+    3. Нажмите "Добавить в отчет" — затем скачайте CSV.
+    4. Для подгонки: вычислите коэффициент scale = (реальная сумма / модельная сумма).
+       - Можно применить scale к elec_per_person_kWh или редактировать elec_base_kWh / elec_per_m2_kWh.
+    5. После подгонки модель даст прогнозы на 12 месяцев и диапазоны (eco/avg/int).
+    """)
+    st.write("Если нужно, я могу подготовить автоматическую процедуру калибровки по одной квитанции (включая оптимизацию коэффициентов).")
+
+st.markdown("---")
+st.caption("Разработано как демонстрация модели 'типовых домохозяйств'. Тарифы предварительно заполнены для Минска на основе источников Energosbyt / Minskvodokanal. Для реальных деплоев требуется согласование и проверка тарифных формул (особенно для отопления и субсидий).")
