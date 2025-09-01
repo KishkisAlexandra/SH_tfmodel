@@ -1,8 +1,6 @@
 # app.py
 import streamlit as st
 import pandas as pd
-!pip install matplotlib
-import matplotlib.pyplot as plt
 from datetime import datetime
 
 st.set_page_config(
@@ -126,16 +124,4 @@ cost_df = pd.DataFrame([
     ["Фикс. платежи", "-", "-", costs["fixed_fees"]],
     ["Итого", "-", "-", costs["total_monthly"]]
 ], columns=["Услуга", "Объём", "Тариф (BYN)", "Стоимость (BYN)"])
-st.dataframe(cost_df.style.format({2: "{:.4f}", 3: "{:.2f}"}), height=300)
-
-# ---- График ----
-st.subheader("Распределение расходов")
-plot_df = cost_df[cost_df["Услуга"] != "Итого"].copy()
-plot_df["Стоимость (BYN)"] = pd.to_numeric(plot_df["Стоимость (BYN)"], errors='coerce')
-fig, ax = plt.subplots(figsize=(8,4))
-plot_df.set_index("Услуга")["Стоимость (BYN)"].plot(kind='bar', ax=ax)
-ax.set_ylabel("BYN / месяц")
-ax.set_xticks(range(len(plot_df)))
-ax.set_xticklabels(plot_df["Услуга"], rotation=30, ha='right')
-st.pyplot(fig)
-plt.close(fig)
+st.dataframe(cost_df.style.fo_
