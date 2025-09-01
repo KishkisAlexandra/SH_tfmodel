@@ -6,15 +6,8 @@ import plotly.express as px
 st.set_page_config(page_title="Utility Benchmark — дашборд", page_icon="🏠", layout="wide")
 
 # ------------------------
-# Настройки / константы
+# Константы
 # ------------------------
-ARCHETYPES = {
-    "Одинокий житель": 0.8,
-    "Пара": 0.95,
-    "Семья с детьми": 1.1,
-    "Большая семья": 1.25
-}
-
 SCENARIOS = {"Экономный": 0.85, "Средний": 1.0, "Расточительный": 1.25}
 
 DEFAULT_TARIFFS = {
@@ -77,19 +70,17 @@ def calculate_costs(volumes, tariffs, subsidy=False, subsidy_rate=0.2):
     return costs
 
 # ------------------------
-# Sidebar: ввод параметров
+# Sidebar: параметры семьи
 # ------------------------
-st.sidebar.header("Параметры расчёта")
+st.sidebar.header("Параметры семьи")
 month = st.sidebar.selectbox("Месяц", list(range(1,13)),
                              format_func=lambda x: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"][x-1])
 area_m2 = st.sidebar.number_input("Площадь, м²", 10.0, 500.0, 90.0)
 adults = st.sidebar.number_input("Взрослые", 0,10,2)
 children = st.sidebar.number_input("Дети", 0,10,1)
 occupants = adults + children
-behavior = st.sidebar.selectbox("Сценарий поведения", list(SCENARIOS.keys()), index=1)
-behavior_factor = SCENARIOS[behavior]
-archetype_name = st.sidebar.selectbox("Сравнить с профилем (архетип)", list(ARCHETYPES.keys()), index=3)
-archetype_factor = ARCHETYPES[archetype_name]
+scenario = st.sidebar.selectbox("Сценарий поведения", list(SCENARIOS.keys()), index=1)
+behavior_factor = SCENARIOS[scenario]
 
 # Галочка льготного тарифа
 st.sidebar.markdown("---")
@@ -99,7 +90,7 @@ if use_subsidy:
 else:
     subsidy_rate = 1.0
 
-# Расширенные настройки тарифа (только при включении льгот)
+# Расширенные настройки тарифа
 with st.sidebar.expander("Расширенные настройки тарифа"):
     t_elec = st.number_input("Электроэнергия BYN/kWh", value=DEFAULT_TARIFFS["electricity_BYN_per_kWh"], format="%.6f")
     t_water = st.number_input("Вода BYN/m³", value=DEFAULT_TARIFFS["water_BYN_per_m3"], format="%.6f")
@@ -116,34 +107,63 @@ tariffs = {
 }
 
 # ------------------------
-# Расчёт
+# Ввод реальных расходов
 # ------------------------
-user_vol = calculate_volumes(area_m2, occupants, behavior_factor, month=month)
-user_costs = calculate_costs(user_vol, tariffs, subsidy=use_subsidy, subsidy_rate=subsidy_rate)
-typical_vol = calculate_volumes(area_m2, occupants, archetype_factor, month=month)
+st.header("📊 Введите ваши реальные расходы за месяц")
+with st.expander("Показать поля для ручного ввода"):
+    user_real = {
+        "Электроэнергия": st.number_input("Электроэнергия BYN", min_value=0.0, value=0.0),
+        "Вода": st.number_input("Вода BYN", min_value=0.0, value=0.0),
+        "Канализация": st.number_input("Канализация BYN", min_value=0.0, value=0.0),
+        "Отопление": st.number_input("Отопление BYN", min_value=0.0, value=0.0),
+        "Фикс. платежи": st.number_input("Фикс. платежи BYN", min_value=0.0, value=0.0)
+    }
+user_real["Итого"] = sum(user_real.values())
+
+# ------------------------
+# Расчёт идеального и типового профиля
+# ------------------------
+ideal_vol = calculate_volumes(area_m2, occupants, behavior_factor, month=month)
+ideal_costs = calculate_costs(ideal_vol, tariffs, subsidy=use_subsidy, subsidy_rate=subsidy_rate)
+
+# Типовой домохозяйственный профиль: «Средний сосед»
+typical_vol = calculate_volumes(area_m2, occupants, 1.0, month=month)  # усреднённый фактор
 typical_costs = calculate_costs(typical_vol, tariffs, subsidy=False)
 
 # ------------------------
-# Коммунальные платежи
+# Визуализация
 # ------------------------
-st.header("🏠 Коммунальные платежи")
-st.subheader(f"Сравнение с профилем: «{archetype_name}»")
-
+st.header("🏠 Сравнение расходов")
 col1, col2 = st.columns(2)
 with col1:
-    st.metric("Ваш счёт, BYN", f"{user_costs['Итого']}")
-    st.metric("Типовой счёт, BYN", f"{typical_costs['Итого']}")
-    diff_percent = round((user_costs['Итого']/typical_costs['Итого']-1)*100,1)
-    st.info(f"Ваши расходы на {diff_percent}% {'выше' if diff_percent>0 else 'ниже'} среднего профиля.")
+    st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']}")
+    st.metric("Ваши реальные расходы, BYN", f"{user_real['Итого']}")
+    st.metric("Средний сосед, BYN", f"{typical_costs['Итого']}")
+    # Процент отклонения
+    diff_real = round((user_real['Итого']/ideal_costs['Итого']-1)*100 if ideal_costs['Итого']>0 else 0,1)
+    diff_typical = round((user_real['Итого']/typical_costs['Итого']-1)*100 if typical_costs['Итого']>0 else 0,1)
+    st.info(f"Ваши реальные расходы на {diff_real}% {'выше' if diff_real>0 else 'ниже'} нормативного расчёта.")
+    st.info(f"Ваши реальные расходы на {diff_typical}% {'выше' if diff_typical>0 else 'ниже'} среднего соседа.")
 
 with col2:
-    # Столбцовая диаграмма
     cost_df = pd.DataFrame({
-        "Категория": list(user_costs.keys())[:-1],
-        "Ваши расходы": list(user_costs.values())[:-1],
-        "Типовые расходы": list(typical_costs.values())[:-1]
+        "Категория": list(ideal_costs.keys())[:-1],
+        "Идеальный расчёт": list(ideal_costs.values())[:-1],
+        "Ваши реальные данные": list(user_real.values())[:-1],
+        "Средний сосед": list(typical_costs.values())[:-1]
     })
-    fig = px.bar(cost_df, x="Категория", y=["Ваши расходы","Типовые расходы"],
-                 barmode="group", color_discrete_sequence=["#636EFA","#EF553B"])
+    fig = px.bar(cost_df, x="Категория", y=["Идеальный расчёт","Ваши реальные данные","Средний сосед"],
+                 barmode="group",
+                 color_discrete_sequence=["#636EFA","#00CC96","#EF553B"])
     fig.update_layout(yaxis_title="BYN / месяц")
     st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------
+# Рекомендации
+# ------------------------
+st.header("💡 Рекомендации")
+for cat in ["Электроэнергия","Вода","Отопление","Канализация"]:
+    if user_real[cat] > ideal_costs[cat]:
+        st.write(f"- Перерасход по {cat}: проверьте приборы и привычки, возможна экономия.")
+    elif user_real[cat] < ideal_costs[cat]:
+        st.write(f"- {cat} ниже нормативного уровня — расход в норме или экономия достигнута.")
