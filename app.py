@@ -1,6 +1,7 @@
 # app.py
 import streamlit as st
 import pandas as pd
+!pip install matplotlib
 import matplotlib.pyplot as plt
 from datetime import datetime
 
