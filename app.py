@@ -1,29 +1,27 @@
 # app.py
 import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib
-matplotlib.use('Agg') # Add this line
 import matplotlib.pyplot as plt
-from io import BytesIO
 from datetime import datetime
 
-st.set_page_config(page_title="Utility Benchmark Demo — Typical Households", page_icon="🏠", layout="wide")
+st.set_page_config(
+    page_title="Utility Benchmark Demo — Typical Households",
+    page_icon="🏠",
+    layout="wide"
+)
 
 # ---- Helper / model functions ----
 profiles = {"eco": 0.85, "average": 1.0, "intensive": 1.15}
 
-# Default tariffs (pre-filled for Minsk as agreed)
 DEFAULT_TARIFFS = {
-    "electricity_BYN_per_kWh": 0.254,     # BYN / kWh
-    "water_BYN_per_m3": 1.7858,          # BYN / m3 (cold+hot combined tariff used for simplicity)
-    "sewage_BYN_per_m3": 0.9586,         # BYN / m3
-    "heating_BYN_per_Gcal": 135.0,       # BYN / Gcal
-    "gas_BYN_per_m3": 0.10,              # BYN / m3 (placeholder, rarely used if central heating)
-    "fixed_fees_BYN": 5.0                # BYN / month (administration, trash etc.)
+    "electricity_BYN_per_kWh": 0.254,
+    "water_BYN_per_m3": 1.7858,
+    "sewage_BYN_per_m3": 0.9586,
+    "heating_BYN_per_Gcal": 135.0,
+    "gas_BYN_per_m3": 0.10,
+    "fixed_fees_BYN": 5.0
 }
 
-# Coefficients (tweakable)
 DEFAULT_COEFFS = {
     "elec_base_kWh": 40.0,
     "elec_per_person_kWh": 35.0,
@@ -36,9 +34,10 @@ DEFAULT_COEFFS = {
     "heating_season_months": 7.0
 }
 
-def calculate_volumes(area_m2: float, occupants: int, profile: str, coeffs: dict = DEFAULT_COEFFS):
+def calculate_volumes(area_m2, occupants, profile, coeffs=DEFAULT_COEFFS):
     pf = profiles.get(profile, 1.0)
-    elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"] * occupants + coeffs["elec_per_m2_kWh"] * area_m2) * pf
+    elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"] * occupants +
+            coeffs["elec_per_m2_kWh"] * area_m2) * pf
     water = coeffs["water_per_person_m3"] * occupants * pf
     hot_water = water * coeffs["hot_water_fraction"]
     sewage = water
@@ -48,7 +47,7 @@ def calculate_volumes(area_m2: float, occupants: int, profile: str, coeffs: dict
     heat_monthly_low = G_low / coeffs["heating_season_months"]
     heat_monthly_mid = G_mid / coeffs["heating_season_months"]
     heat_monthly_high = G_high / coeffs["heating_season_months"]
-    volumes = {
+    return {
         "electricity_kWh": round(elec, 1),
         "water_m3": round(water, 2),
         "hot_water_m3": round(hot_water, 2),
@@ -57,182 +56,85 @@ def calculate_volumes(area_m2: float, occupants: int, profile: str, coeffs: dict
         "heating_Gcal_month_mid": round(heat_monthly_mid, 3),
         "heating_Gcal_month_high": round(heat_monthly_high, 3)
     }
-    return volumes
 
-def calculate_costs(volumes: dict, tariffs: dict, heating_scenario="mid"):
+def calculate_costs(volumes, tariffs, heating_scenario="mid"):
     elec_cost = volumes["electricity_kWh"] * tariffs["electricity_BYN_per_kWh"]
     water_cost = volumes["water_m3"] * tariffs["water_BYN_per_m3"]
     sewage_cost = volumes["sewage_m3"] * tariffs["sewage_BYN_per_m3"]
-    if heating_scenario == "low":
-        heat_cost = volumes["heating_Gcal_month_low"] * tariffs["heating_BYN_per_Gcal"]
-    elif heating_scenario == "high":
-        heat_cost = volumes["heating_Gcal_month_high"] * tariffs["heating_BYN_per_Gcal"]
-    else:
-        heat_cost = volumes["heating_Gcal_month_mid"] * tariffs["heating_BYN_per_Gcal"]
-    gas_cost = 0.0
+    heat_cost = volumes[f"heating_Gcal_month_{heating_scenario}"] * tariffs["heating_BYN_per_Gcal"]
     fixed = tariffs.get("fixed_fees_BYN", 0.0)
     costs = {
         "electricity_cost": round(elec_cost, 2),
         "water_cost": round(water_cost, 2),
         "sewage_cost": round(sewage_cost, 2),
         "heating_cost": round(heat_cost, 2),
-        "gas_cost": round(gas_cost, 2),
+        "gas_cost": round(0.0, 2),
         "fixed_fees": round(fixed, 2)
     }
     costs["total_monthly"] = round(sum(costs.values()), 2)
     return costs
 
-# ---- UI layout ----
-st.title("🏠 Демо: Моделирование типовых домохозяйств — расчёт коммунальных платежей")
-st.markdown("""
-**Цель:** быстро моделировать объёмы потребления и месячные расходы для типовых домохозяйств,
-показывая диапазон (eco / average / intensive) и позволяя калибровать модель по реальной квитанции.
-""")
-
-# Left column: inputs
+# ---- Sidebar inputs ----
 with st.sidebar:
     st.header("Настройки модели")
-    st.subheader("Архетип (ввод)")
-    area_m2 = st.number_input("Площадь, м²", min_value=10.0, max_value=1000.0, value=90.0, step=1.0)
-    adults = st.number_input("Взрослые", min_value=0, max_value=10, value=2, step=1)
-    children = st.number_input("Дети", min_value=0, max_value=10, value=2, step=1)
-    profile = st.selectbox("Профиль поведения", options=["eco", "average", "intensive"], index=1, format_func=lambda x: x.capitalize())
-    heating_type = st.selectbox("Тип отопления (информативно)", options=["central (district)", "gas boiler", "electric heating"], index=0)
+    area_m2 = st.number_input("Площадь, м²", min_value=10.0, max_value=1000.0, value=90.0)
+    adults = st.number_input("Взрослые", min_value=0, max_value=10, value=2)
+    children = st.number_input("Дети", min_value=0, max_value=10, value=2)
+    profile = st.selectbox("Профиль поведения", ["eco", "average", "intensive"], index=1)
+    
     st.markdown("---")
-    st.subheader("Тарифы (BYN) — редактируемые")
-    t_elec = st.number_input("Электроэнергия, BYN / kWh", value=DEFAULT_TARIFFS["electricity_BYN_per_kWh"], format="%.6f")
-    t_water = st.number_input("Вода, BYN / m³", value=DEFAULT_TARIFFS["water_BYN_per_m3"], format="%.6f")
-    t_sewage = st.number_input("Канализация, BYN / m³", value=DEFAULT_TARIFFS["sewage_BYN_per_m3"], format="%.6f")
-    t_heat = st.number_input("Отопление, BYN / Gcal", value=DEFAULT_TARIFFS["heating_BYN_per_Gcal"], format="%.2f")
-    t_gas = st.number_input("Газ, BYN / m³ (если актуально)", value=DEFAULT_TARIFFS["gas_BYN_per_m3"], format="%.6f")
-    t_fixed = st.number_input("Фикс. платежы, BYN / мес", value=DEFAULT_TARIFFS["fixed_fees_BYN"], format="%.2f")
-    st.markdown("---")
-    st.subheader("Коэффициенты (опционально)")
-    elec_base = st.number_input("Elec: базовый kWh (аппараты)", value=DEFAULT_COEFFS["elec_base_kWh"])
-    elec_pp = st.number_input("Elec: kWh на человека/мес", value=DEFAULT_COEFFS["elec_per_person_kWh"])
-    elec_pm2 = st.number_input("Elec: kWh на м²/мес", value=DEFAULT_COEFFS["elec_per_m2_kWh"])
-    water_pp = st.number_input("Вода: m³ на человека/мес", value=DEFAULT_COEFFS["water_per_person_m3"])
-    st.markdown("---")
-    st.write("Справочно: источники тарифов (Минск):")
-    st.write("- Energosbyt / Минскэнергосбыт (электро) — [energosbyt.by]")
-    st.write("- Минскводоканал (вода, канализация) — [minskvodokanal.by]")
-    st.write("**Нажмите 'Добавить в отчет'**, чтобы сохранить расчёт в таблицу справа.")
+    st.subheader("Тарифы (BYN)")
+    t_elec = st.number_input("Электроэнергия, BYN/kWh", value=DEFAULT_TARIFFS["electricity_BYN_per_kWh"])
+    t_water = st.number_input("Вода, BYN/m³", value=DEFAULT_TARIFFS["water_BYN_per_m3"])
+    t_sewage = st.number_input("Канализация, BYN/m³", value=DEFAULT_TARIFFS["sewage_BYN_per_m3"])
+    t_heat = st.number_input("Отопление, BYN/Gcal", value=DEFAULT_TARIFFS["heating_BYN_per_Gcal"])
+    t_fixed = st.number_input("Фикс. платежи, BYN/мес", value=DEFAULT_TARIFFS["fixed_fees_BYN"])
 
-# Build tariffs and coeffs dicts from sidebar inputs
 tariffs = {
     "electricity_BYN_per_kWh": float(t_elec),
     "water_BYN_per_m3": float(t_water),
     "sewage_BYN_per_m3": float(t_sewage),
     "heating_BYN_per_Gcal": float(t_heat),
-    "gas_BYN_per_m3": float(t_gas),
+    "gas_BYN_per_m3": 0.0,
     "fixed_fees_BYN": float(t_fixed)
 }
-coeffs = {
-    "elec_base_kWh": float(elec_base),
-    "elec_per_person_kWh": float(elec_pp),
-    "elec_per_m2_kWh": float(elec_pm2),
-    "water_per_person_m3": float(water_pp),
-    "hot_water_fraction": DEFAULT_COEFFS["hot_water_fraction"],
-    "heating_Gcal_per_m2_season_low": DEFAULT_COEFFS["heating_Gcal_per_m2_season_low"],
-    "heating_Gcal_per_m2_season_mid": DEFAULT_COEFFS["heating_Gcal_per_m2_season_mid"],
-    "heating_Gcal_per_m2_season_high": DEFAULT_COEFFS["heating_Gcal_per_m2_season_high"],
-    "heating_season_months": DEFAULT_COEFFS["heating_season_months"]
-}
 
-# Main area: compute and show
-st.header("Результат расчёта для архетипа")
 occupants = adults + children
-volumes = calculate_volumes(area_m2, occupants, profile, coeffs)
-costs = calculate_costs(volumes, tariffs, heating_scenario="mid")
+volumes = calculate_volumes(area_m2, occupants, profile)
+costs = calculate_costs(volumes, tariffs)
 
-col1, col2 = st.columns([2, 1])
-with col1:
-    st.subheader(f"Архетип: {area_m2} м², {adults} взрослых, {children} детей — профиль: {profile}")
-    st.markdown("**Объёмы (оценка)**")
-    vol_table = {
-        "Параметр": ["Электричество (kWh/мес)", "Вода (m³/мес)", "Горячая вода (m³/мес)", "Канализация (m³/мес)",
-                     "Отопление (Gcal/мес, mid)"],
-        "Значение": [volumes["electricity_kWh"], volumes["water_m3"], volumes["hot_water_m3"], volumes["sewage_m3"], volumes["heating_Gcal_month_mid"]]
-    }
-    st.table(pd.DataFrame(vol_table))
+# ---- Main layout ----
+st.title("🏠 Расчёт коммунальных платежей — типовое домохозяйство")
+st.subheader(f"{area_m2} м², {adults} взрослых, {children} детей — профиль: {profile}")
 
-    st.markdown("**Детализация стоимости (BYN / мес)**")
-    cost_df = pd.DataFrame([
-        ["Электроэнергия", f"{volumes['electricity_kWh']} kWh", tariffs["electricity_BYN_per_kWh"], costs["electricity_cost"]],
-        ["Вода (холод+горяч)", f"{volumes['water_m3']} m³", tariffs["water_BYN_per_m3"], costs["water_cost"]],
-        ["Канализация", f"{volumes['sewage_m3']} m³", tariffs["sewage_BYN_per_m3"], costs["sewage_cost"]],
-        ["Отопление (mid)", f"{volumes['heating_Gcal_month_mid']} Gcal", tariffs["heating_BYN_per_Gcal"], costs["heating_cost"]],
-        ["Газ (если есть)", "-", tariffs["gas_BYN_per_m3"], costs["gas_cost"]],
-        ["Фикс. платежи", "-", "-", costs["fixed_fees"]],
-        ["Итого", "-", "-", costs["total_monthly"]]
-    ], columns=["Услуга", "Объём", "Тариф (BYN)", "Стоимость (BYN)"])
-    st.dataframe(cost_df.style.format({2: "{:.4f}", 3: "{:.2f}"}), height=300)
+# Объёмы
+vol_table = pd.DataFrame({
+    "Параметр": ["Электричество (kWh/мес)", "Вода (m³/мес)", "Горячая вода (m³/мес)", 
+                 "Канализация (m³/мес)", "Отопление (Gcal/мес)"],
+    "Значение": [volumes["electricity_kWh"], volumes["water_m3"], volumes["hot_water_m3"],
+                 volumes["sewage_m3"], volumes["heating_Gcal_month_mid"]]
+})
+st.table(vol_table)
 
-with col2:
-    st.subheader("Ключевые метрики")
-    st.metric("Итого (BYN/мес)", f"{costs['total_monthly']:.2f}")
-    st.metric("Электроэнергия (BYN)", f"{costs['electricity_cost']:.2f}")
-    st.metric("Отопление (BYN)", f"{costs['heating_cost']:.2f}")
-    st.markdown("**Диапазон для отопления (Gcal/мес)**")
-    st.write(f"low: {volumes['heating_Gcal_month_low']}  mid: {volumes['heating_Gcal_month_mid']}  high: {volumes['heating_Gcal_month_high']}")
+# Стоимости
+cost_df = pd.DataFrame([
+    ["Электроэнергия", volumes["electricity_kWh"], tariffs["electricity_BYN_per_kWh"], costs["electricity_cost"]],
+    ["Вода (холод+горяч)", volumes["water_m3"], tariffs["water_BYN_per_m3"], costs["water_cost"]],
+    ["Канализация", volumes["sewage_m3"], tariffs["sewage_BYN_per_m3"], costs["sewage_cost"]],
+    ["Отопление", volumes["heating_Gcal_month_mid"], tariffs["heating_BYN_per_Gcal"], costs["heating_cost"]],
+    ["Фикс. платежи", "-", "-", costs["fixed_fees"]],
+    ["Итого", "-", "-", costs["total_monthly"]]
+], columns=["Услуга", "Объём", "Тариф (BYN)", "Стоимость (BYN)"])
+st.dataframe(cost_df.style.format({2: "{:.4f}", 3: "{:.2f}"}), height=300)
 
-# Plot cost breakdown
-st.subheader("Визуализация: распределение расходов")
+# ---- График ----
+st.subheader("Распределение расходов")
 plot_df = cost_df[cost_df["Услуга"] != "Итого"].copy()
-plot_df = plot_df.set_index("Услуга")
+plot_df["Стоимость (BYN)"] = pd.to_numeric(plot_df["Стоимость (BYN)"], errors='coerce')
 fig, ax = plt.subplots(figsize=(8,4))
-plot_df["Стоимость (BYN)"].astype(float).plot(kind='bar', ax=ax)
+plot_df.set_index("Услуга")["Стоимость (BYN)"].plot(kind='bar', ax=ax)
 ax.set_ylabel("BYN / месяц")
-ax.set_xticklabels(plot_df.index, rotation=30, ha='right')
+ax.set_xticks(range(len(plot_df)))
+ax.set_xticklabels(plot_df["Услуга"], rotation=30, ha='right')
 st.pyplot(fig)
-
-# ---- multi-record report builder ----
-if 'report' not in st.session_state:
-    st.session_state.report = []
-
-st.markdown("---")
-st.subheader("Добавить расчёт в отчет (собрать несколько архетипов)")
-
-name = st.text_input("Имя записи (например: Minsk - 90m² - 4pers)", value=f"Minsk_{int(area_m2)}m2_{occupants}occ")
-if st.button("Добавить в отчет"):
-    rec = {
-        "name": name,
-        "area_m2": area_m2,
-        "adults": adults,
-        "children": children,
-        "profile": profile,
-        "heating_type": heating_type,
-        "electricity_kWh": volumes["electricity_kWh"],
-        "water_m3": volumes["water_m3"],
-        "heating_Gcal_mid": volumes["heating_Gcal_month_mid"],
-        "total_BYN": costs["total_monthly"],
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    st.session_state.report.append(rec)
-    st.success("Запись добавлена в отчёт")
-
-if st.session_state.report:
-    st.markdown("**Отчет — текущие записи**")
-    report_df = pd.DataFrame(st.session_state.report)
-    st.dataframe(report_df, height=200)
-    csv = report_df.to_csv(index=False).encode('utf-8')
-    st.download_button("Скачать CSV отчета", data=csv, file_name=f"utility_report_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.csv", mime="text/csv")
-
-# ---- small guide / calibration ----
-st.markdown("---")
-with st.expander("Как откалибровать модель на реальной квитанции (5 минут)"):
-    st.write("""
-    1. Возьмите одну реальную квитанцию (поквартальная или помесячная) и найдите:
-       - объем электроэнергии (kWh) или сумму по электроэнергии,
-       - объем воды (m³),
-       - сумму за отопление (или объем в Гкал, если указан).
-    2. Введите в форму площадь и количество проживающих.
-    3. Нажмите "Добавить в отчет" — затем скачайте CSV.
-    4. Для подгонки: вычислите коэффициент scale = (реальная сумма / модельная сумма).
-       - Можно применить scale к elec_per_person_kWh или редактировать elec_base_kWh / elec_pm2_kWh.
-    5. После подгонки модель даст прогнозы на 12 месяцев и диапазоны (eco/avg/int).
-    """)
-    st.write("Если нужно, я могу подготовить автоматическую процедуру калибровки по одной квитанции (включая оптимизацию коэффициентов).")
-
-st.markdown("---")
-st.caption("Разработано как демонстрация модели 'типовых домохозяйств'. Тарифы предварительно заполнены для Минска на основе источников Energosbyt / Minskvodokanal. Для реальных деплоев требуется согласование и проверка тарифных формул (особенно для отопления и субсидий).")
+plt.close(fig)
