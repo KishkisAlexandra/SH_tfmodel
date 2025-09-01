@@ -124,4 +124,11 @@ cost_df = pd.DataFrame([
     ["Фикс. платежи", "-", "-", costs["fixed_fees"]],
     ["Итого", "-", "-", costs["total_monthly"]]
 ], columns=["Услуга", "Объём", "Тариф (BYN)", "Стоимость (BYN)"])
-st.dataframe(cost_df.style.fo_
+st.dataframe(cost_df.style.format({2: "{:.4f}", 3: "{:.2f}"}), height=300)
+
+# ---- График через Streamlit ----
+st.subheader("Распределение расходов")
+plot_df = cost_df[cost_df["Услуга"] != "Итого"].copy()
+plot_df["Стоимость (BYN)"] = pd.to_numeric(plot_df["Стоимость (BYN)"], errors='coerce')
+plot_df = plot_df.set_index("Услуга")["Стоимость (BYN)"]
+st.bar_chart(plot_df)
