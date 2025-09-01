@@ -1,6 +1,6 @@
-# app.py
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 
 st.set_page_config(
     page_title="Utility Benchmark Dashboard",
@@ -31,7 +31,7 @@ DEFAULT_COEFFS = {
     "heating_season_months": 7.0
 }
 
-# ---- Функции расчёта ----
+# ---- Функции ----
 def calculate_volumes(area_m2, occupants, profile, coeffs=DEFAULT_COEFFS, month=1):
     pf = profiles.get(profile, 1.0)
     elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"]*occupants +
@@ -39,7 +39,6 @@ def calculate_volumes(area_m2, occupants, profile, coeffs=DEFAULT_COEFFS, month=
     water = coeffs["water_per_person_m3"]*occupants*pf
     hot_water = water*coeffs["hot_water_fraction"]
     sewage = water
-    # Отопление отключаем с апреля (4) по октябрь (10)
     if 4 <= month <= 10:
         heat_monthly_low = 0
         heat_monthly_mid = 0
@@ -56,16 +55,14 @@ def calculate_volumes(area_m2, occupants, profile, coeffs=DEFAULT_COEFFS, month=
         "water_m3": round(water,2),
         "hot_water_m3": round(hot_water,2),
         "sewage_m3": round(sewage,2),
-        "heating_Gcal_month_low": round(heat_monthly_low,3),
-        "heating_Gcal_month_mid": round(heat_monthly_mid,3),
-        "heating_Gcal_month_high": round(heat_monthly_high,3)
+        "heating_Gcal_month_mid": round(heat_monthly_mid,3)
     }
 
 def calculate_costs(volumes, tariffs, heating_scenario="mid"):
     elec_cost = volumes["electricity_kWh"]*tariffs["electricity_BYN_per_kWh"]
     water_cost = volumes["water_m3"]*tariffs["water_BYN_per_m3"]
     sewage_cost = volumes["sewage_m3"]*tariffs["sewage_BYN_per_m3"]
-    heat_cost = volumes[f"heating_Gcal_month_{heating_scenario}"]*tariffs["heating_BYN_per_Gcal"]
+    heat_cost = volumes["heating_Gcal_month_mid"]*tariffs["heating_BYN_per_Gcal"]
     fixed = tariffs.get("fixed_fees_BYN",0)
     costs = {
         "electricity_cost": round(elec_cost,2),
@@ -79,15 +76,13 @@ def calculate_costs(volumes, tariffs, heating_scenario="mid"):
 
 # ---- Sidebar ----
 with st.sidebar:
-    st.header("Параметры вашего жилья")
+    st.header("Ваши параметры")
     month = st.selectbox("Месяц", list(range(1,13)), format_func=lambda x:
                          ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"][x-1])
     area_m2 = st.number_input("Площадь, м²", min_value=10.0, max_value=500.0, value=80.0)
     adults = st.number_input("Взрослые", min_value=0, max_value=10, value=2)
     children = st.number_input("Дети", min_value=0, max_value=10, value=1)
-    profile = st.selectbox("Профиль поведения", ["eco","average","intensive"], index=1)
-    heating_type = st.selectbox("Тип отопления", ["central","gas","electric"], index=0)
-    housing_type = st.selectbox("Тип жилья", ["квартира","дом"], index=0)
+    profile = st.selectbox("Профиль", ["eco","average","intensive"], index=1)
 
 # ---- Расчёты ----
 occupants = adults + children
@@ -98,35 +93,51 @@ typical_volumes = calculate_volumes(area_m2, occupants, "average", month=month)
 typical_costs = calculate_costs(typical_volumes, DEFAULT_TARIFFS)
 
 # ---- Дашборд ----
-st.title("🏠 Моделирование типового домохозяйства")
-st.subheader(f"Месяц: {month}")
+st.title("🏠 Сравнение коммунальных расходов")
 
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Ваши расходы (BYN/мес)", f"{user_costs['total_monthly']}")
-    st.metric("Электроэнергия", f"{user_costs['electricity_cost']}")
-    st.metric("Отопление", f"{user_costs['heating_cost']}")
-with col2:
-    st.metric("Типовые расходы (BYN/мес)", f"{typical_costs['total_monthly']}")
-    st.metric("Электроэнергия", f"{typical_costs['electricity_cost']}")
-    st.metric("Отопление", f"{typical_costs['heating_cost']}")
+# 1. Спидометр
+st.subheader("📊 Ваши расходы относительно типового")
+fig_gauge = go.Figure(go.Indicator(
+    mode = "gauge+number+delta",
+    value = user_costs["total_monthly"],
+    delta = {"reference": typical_costs["total_monthly"]},
+    gauge = {
+        "axis": {"range": [0, typical_costs["total_monthly"]*1.5]},
+        "bar": {"color": "darkblue"},
+        "steps": [
+            {"range": [0, typical_costs["total_monthly"]*0.8], "color": "lightgreen"},
+            {"range": [typical_costs["total_monthly"]*0.8, typical_costs["total_monthly"]*1.2], "color": "khaki"},
+            {"range": [typical_costs["total_monthly"]*1.2, typical_costs["total_monthly"]*1.5], "color": "salmon"}
+        ],
+    },
+    title = {"text": "BYN/мес"}
+))
+st.plotly_chart(fig_gauge, use_container_width=True)
 
-# ---- Бар-чарт для сравнения расходов ----
-st.subheader("Сравнение расходов по услугам")
-compare_chart_df = pd.DataFrame({
-    "Ваши показатели": [user_costs["electricity_cost"], user_costs["water_cost"], user_costs["heating_cost"]],
-    "Типовые показатели": [typical_costs["electricity_cost"], typical_costs["water_cost"], typical_costs["heating_cost"]]
-}, index=["Электроэнергия","Вода","Отопление"])
+# 2. Пузырьковая диаграмма
+st.subheader("🔵 Распределение расходов по категориям")
+categories = ["Электроэнергия","Вода","Канализация","Отопление","Фикс. платежи"]
 
-st.bar_chart(compare_chart_df)
+bubble_df = pd.DataFrame({
+    "Категория": categories*2,
+    "Стоимость": [user_costs["electricity_cost"], user_costs["water_cost"], user_costs["sewage_cost"], user_costs["heating_cost"], user_costs["fixed_fees"]] +
+                 [typical_costs["electricity_cost"], typical_costs["water_cost"], typical_costs["sewage_cost"], typical_costs["heating_cost"], typical_costs["fixed_fees"]],
+    "Тип": ["Ваши"]*5 + ["Типовые"]*5
+})
 
-# ---- Бар-чарт для сравнения объёмов ----
-st.subheader("Сравнение объёмов потребления")
-compare_volumes_df = pd.DataFrame({
-    "Ваши показатели": [user_volumes["electricity_kWh"], user_volumes["water_m3"], user_volumes["hot_water_m3"],
-                        user_volumes["sewage_m3"], user_volumes["heating_Gcal_month_mid"]],
-    "Типовые показатели": [typical_volumes["electricity_kWh"], typical_volumes["water_m3"], typical_volumes["hot_water_m3"],
-                           typical_volumes["sewage_m3"], typical_volumes["heating_Gcal_month_mid"]]
-}, index=["Электроэнергия (kWh)","Вода (m³)","Горячая вода (m³)","Канализация (m³)","Отопление (Gcal)"])
+fig_bubble = go.Figure()
 
-st.bar_chart(compare_volumes_df)
+for t in bubble_df["Тип"].unique():
+    df = bubble_df[bubble_df["Тип"]==t]
+    fig_bubble.add_trace(go.Scatter(
+        x=df["Категория"],
+        y=df["Стоимость"],
+        mode="markers+text",
+        text=df["Стоимость"],
+        textposition="top center",
+        marker=dict(size=df["Стоимость"]*3, sizemode="area", opacity=0.6),
+        name=t
+    ))
+
+fig_bubble.update_layout(height=500)
+st.plotly_chart(fig_bubble, use_container_width=True)
