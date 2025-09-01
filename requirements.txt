@@ -3,4 +3,5 @@ plotly
 pandas
 numpy
 matplotlib
-pip install streamlit pandas plotly pillow pytesseract
+pillow 
+pytesseract
