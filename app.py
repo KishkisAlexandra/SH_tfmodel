@@ -1,643 +1,236 @@
-{
-  "nbformat": 4,
-  "nbformat_minor": 0,
-  "metadata": {
-    "colab": {
-      "provenance": [],
-      "authorship_tag": "ABX9TyOhc1Mxgyq8ACJfeB7A2OZZ",
-      "include_colab_link": True
-    },
-    "kernelspec": {
-      "name": "python3",
-      "display_name": "Python 3"
-    },
-    "language_info": {
-      "name": "python"
-    }
-  },
-  "cells": [
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "view-in-github",
-        "colab_type": "text"
-      },
-      "source": [
-        "<a href=\"https://colab.research.google.com/github/KishkisAlexandra/SH_tfmodel/blob/main/app.py\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": 2,
-      "metadata": {
-        "id": "35TfDY9ucCwt"
-      },
-      "outputs": [],
-      "source": [
-        "# This cell contains shell commands."
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# app.py\n",
-        "import streamlit as st\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "import matplotlib.pyplot as plt\n",
-        "from io import BytesIO\n",
-        "from datetime import datetime\n",
-        "\n",
-        "st.set_page_config(page_title=\"Utility Benchmark Demo — Typical Households\", page_icon=\"🏠\", layout=\"wide\")\n",
-        "\n",
-        "# ---- Helper / model functions ----\n",
-        "profiles = {\"eco\": 0.85, \"average\": 1.0, \"intensive\": 1.15}\n",
-        "\n",
-        "# Default tariffs (pre-filled for Minsk as agreed)\n",
-        "DEFAULT_TARIFFS = {\n",
-        "    \"electricity_BYN_per_kWh\": 0.254,     # BYN / kWh\n",
-        "    \"water_BYN_per_m3\": 1.7858,          # BYN / m3 (cold+hot combined tariff used for simplicity)\n",
-        "    \"sewage_BYN_per_m3\": 0.9586,         # BYN / m3\n",
-        "    \"heating_BYN_per_Gcal\": 135.0,       # BYN / Gcal\n",
-        "    \"gas_BYN_per_m3\": 0.10,              # BYN / m3 (placeholder, rarely used if central heating)\n",
-        "    \"fixed_fees_BYN\": 5.0                # BYN / month (administration, trash etc.)\n",
-        "}\n",
-        "\n",
-        "# Coefficients (tweakable)\n",
-        "DEFAULT_COEFFS = {\n",
-        "    \"elec_base_kWh\": 40.0,\n",
-        "    \"elec_per_person_kWh\": 35.0,\n",
-        "    \"elec_per_m2_kWh\": 0.25,\n",
-        "    \"water_per_person_m3\": 3.5,\n",
-        "    \"hot_water_fraction\": 0.45,\n",
-        "    \"heating_Gcal_per_m2_season_low\": 0.08,\n",
-        "    \"heating_Gcal_per_m2_season_mid\": 0.10,\n",
-        "    \"heating_Gcal_per_m2_season_high\": 0.12,\n",
-        "    \"heating_season_months\": 7.0\n",
-        "}\n",
-        "\n",
-        "def calculate_volumes(area_m2: float, occupants: int, profile: str, coeffs: dict = DEFAULT_COEFFS):\n",
-        "    pf = profiles.get(profile, 1.0)\n",
-        "    elec = (coeffs[\"elec_base_kWh\"] + coeffs[\"elec_per_person_kWh\"] * occupants + coeffs[\"elec_per_m2_kWh\"] * area_m2) * pf\n",
-        "    water = coeffs[\"water_per_person_m3\"] * occupants * pf\n",
-        "    hot_water = water * coeffs[\"hot_water_fraction\"]\n",
-        "    sewage = water\n",
-        "    G_low = coeffs[\"heating_Gcal_per_m2_season_low\"] * area_m2\n",
-        "    G_mid = coeffs[\"heating_Gcal_per_m2_season_mid\"] * area_m2\n",
-        "    G_high = coeffs[\"heating_Gcal_per_m2_season_high\"] * area_m2\n",
-        "    heat_monthly_low = G_low / coeffs[\"heating_season_months\"]\n",
-        "    heat_monthly_mid = G_mid / coeffs[\"heating_season_months\"]\n",
-        "    heat_monthly_high = G_high / coeffs[\"heating_season_months\"]\n",
-        "    volumes = {\n",
-        "        \"electricity_kWh\": round(elec, 1),\n",
-        "        \"water_m3\": round(water, 2),\n",
-        "        \"hot_water_m3\": round(hot_water, 2),\n",
-        "        \"sewage_m3\": round(sewage, 2),\n",
-        "        \"heating_Gcal_month_low\": round(heat_monthly_low, 3),\n",
-        "        \"heating_Gcal_month_mid\": round(heat_monthly_mid, 3),\n",
-        "        \"heating_Gcal_month_high\": round(heat_monthly_high, 3)\n",
-        "    }\n",
-        "    return volumes\n",
-        "\n",
-        "def calculate_costs(volumes: dict, tariffs: dict, heating_scenario=\"mid\"):\n",
-        "    elec_cost = volumes[\"electricity_kWh\"] * tariffs[\"electricity_BYN_per_kWh\"]\n",
-        "    water_cost = volumes[\"water_m3\"] * tariffs[\"water_BYN_per_m3\"]\n",
-        "    sewage_cost = volumes[\"sewage_m3\"] * tariffs[\"sewage_BYN_per_m3\"]\n",
-        "    if heating_scenario == \"low\":\n",
-        "        heat_cost = volumes[\"heating_Gcal_month_low\"] * tariffs[\"heating_BYN_per_Gcal\"]\n",
-        "    elif heating_scenario == \"high\":\n",
-        "        heat_cost = volumes[\"heating_Gcal_month_high\"] * tariffs[\"heating_BYN_per_Gcal\"]\n",
-        "    else:\n",
-        "        heat_cost = volumes[\"heating_Gcal_month_mid\"] * tariffs[\"heating_BYN_per_Gcal\"]\n",
-        "    gas_cost = 0.0\n",
-        "    fixed = tariffs.get(\"fixed_fees_BYN\", 0.0)\n",
-        "    costs = {\n",
-        "        \"electricity_cost\": round(elec_cost, 2),\n",
-        "        \"water_cost\": round(water_cost, 2),\n",
-        "        \"sewage_cost\": round(sewage_cost, 2),\n",
-        "        \"heating_cost\": round(heat_cost, 2),\n",
-        "        \"gas_cost\": round(gas_cost, 2),\n",
-        "        \"fixed_fees\": round(fixed, 2)\n",
-        "    }\n",
-        "    costs[\"total_monthly\"] = round(sum(costs.values()), 2)\n",
-        "    return costs\n",
-        "\n",
-        "# ---- UI layout ----\n",
-        "st.title(\"🏠 Демо: Моделирование типовых домохозяйств — расчёт коммунальных платежей\")\n",
-        "st.markdown(\"\"\"\n",
-        "**Цель:** быстро моделировать объёмы потребления и месячные расходы для типовых домохозяйств,\n",
-        "показывая диапазон (eco / average / intensive) и позволяя калибровать модель по реальной квитанции.\n",
-        "\"\"\")\n",
-        "\n",
-        "# Left column: inputs\n",
-        "with st.sidebar:\n",
-        "    st.header(\"Настройки модели\")\n",
-        "    st.subheader(\"Архетип (ввод)\")\n",
-        "    area_m2 = st.number_input(\"Площадь, м²\", min_value=10.0, max_value=1000.0, value=90.0, step=1.0)\n",
-        "    adults = st.number_input(\"Взрослые\", min_value=0, max_value=10, value=2, step=1)\n",
-        "    children = st.number_input(\"Дети\", min_value=0, max_value=10, value=2, step=1)\n",
-        "    profile = st.selectbox(\"Профиль поведения\", options=[\"eco\", \"average\", \"intensive\"], index=1, format_func=lambda x: x.capitalize())\n",
-        "    heating_type = st.selectbox(\"Тип отопления (информативно)\", options=[\"central (district)\", \"gas boiler\", \"electric heating\"], index=0)\n",
-        "    st.markdown(\"---\")\n",
-        "    st.subheader(\"Тарифы (BYN) — редактируемые\")\n",
-        "    t_elec = st.number_input(\"Электроэнергия, BYN / kWh\", value=DEFAULT_TARIFFS[\"electricity_BYN_per_kWh\"], format=\"%.6f\")\n",
-        "    t_water = st.number_input(\"Вода, BYN / m³\", value=DEFAULT_TARIFFS[\"water_BYN_per_m3\"], format=\"%.6f\")\n",
-        "    t_sewage = st.number_input(\"Канализация, BYN / m³\", value=DEFAULT_TARIFFS[\"sewage_BYN_per_m3\"], format=\"%.6f\")\n",
-        "    t_heat = st.number_input(\"Отопление, BYN / Gcal\", value=DEFAULT_TARIFFS[\"heating_BYN_per_Gcal\"], format=\"%.2f\")\n",
-        "    t_gas = st.number_input(\"Газ, BYN / m³ (если актуально)\", value=DEFAULT_TARIFFS[\"gas_BYN_per_m3\"], format=\"%.6f\")\n",
-        "    t_fixed = st.number_input(\"Фикс. платежы, BYN / мес\", value=DEFAULT_TARIFFS[\"fixed_fees_BYN\"], format=\"%.2f\")\n",
-        "    st.markdown(\"---\")\n",
-        "    st.subheader(\"Коэффициенты (опционально)\")\n",
-        "    elec_base = st.number_input(\"Elec: базовый kWh (аппараты)\", value=DEFAULT_COEFFS[\"elec_base_kWh\"])\n",
-        "    elec_pp = st.number_input(\"Elec: kWh на человека/мес\", value=DEFAULT_COEFFS[\"elec_per_person_kWh\"])\n",
-        "    elec_pm2 = st.number_input(\"Elec: kWh на м²/мес\", value=DEFAULT_COEFFS[\"elec_per_m2_kWh\"])\n",
-        "    water_pp = st.number_input(\"Вода: m³ на человека/мес\", value=DEFAULT_COEFFS[\"water_per_person_m3\"])\n",
-        "    st.markdown(\"---\")\n",
-        "    st.write(\"Справочно: источники тарифов (Минск):\")\n",
-        "    st.write(\"- Energosbyt / Минскэнергосбыт (электро) — [energosbyt.by]\")\n",
-        "    st.write(\"- Минскводоканал (вода, канализация) — [minskvodokanal.by]\")\n",
-        "    st.write(\"**Нажмите 'Добавить в отчет'**, чтобы сохранить расчёт в таблицу справа.\")\n",
-        "\n",
-        "# Build tariffs and coeffs dicts from sidebar inputs\n",
-        "tariffs = {\n",
-        "    \"electricity_BYN_per_kWh\": float(t_elec),\n",
-        "    \"water_BYN_per_m3\": float(t_water),\n",
-        "    \"sewage_BYN_per_m3\": float(t_sewage),\n",
-        "    \"heating_BYN_per_Gcal\": float(t_heat),\n",
-        "    \"gas_BYN_per_m3\": float(t_gas),\n",
-        "    \"fixed_fees_BYN\": float(t_fixed)\n",
-        "}\n",
-        "coeffs = {\n",
-        "    \"elec_base_kWh\": float(elec_base),\n",
-        "    \"elec_per_person_kWh\": float(elec_pp),\n",
-        "    \"elec_per_m2_kWh\": float(elec_pm2),\n",
-        "    \"water_per_person_m3\": float(water_pp),\n",
-        "    \"hot_water_fraction\": DEFAULT_COEFFS[\"hot_water_fraction\"],\n",
-        "    \"heating_Gcal_per_m2_season_low\": DEFAULT_COEFFS[\"heating_Gcal_per_m2_season_low\"],\n",
-        "    \"heating_Gcal_per_m2_season_mid\": DEFAULT_COEFFS[\"heating_Gcal_per_m2_season_mid\"],\n",
-        "    \"heating_Gcal_per_m2_season_high\": DEFAULT_COEFFS[\"heating_Gcal_per_m2_season_high\"],\n",
-        "    \"heating_season_months\": DEFAULT_COEFFS[\"heating_season_months\"]\n",
-        "}\n",
-        "\n",
-        "# Main area: compute and show\n",
-        "st.header(\"Результат расчёта для архетипа\")\n",
-        "occupants = adults + children\n",
-        "volumes = calculate_volumes(area_m2, occupants, profile, coeffs)\n",
-        "costs = calculate_costs(volumes, tariffs, heating_scenario=\"mid\")\n",
-        "\n",
-        "col1, col2 = st.columns([2, 1])\n",
-        "with col1:\n",
-        "    st.subheader(f\"Архетип: {area_m2} м², {adults} взрослых, {children} детей — профиль: {profile}\")\n",
-        "    st.markdown(\"**Объёмы (оценка)**\")\n",
-        "    vol_table = {\n",
-        "        \"Параметр\": [\"Электричество (kWh/мес)\", \"Вода (m³/мес)\", \"Горячая вода (m³/мес)\", \"Канализация (m³/мес)\",\n",
-        "                     \"Отопление (Gcal/мес, mid)\"],\n",
-        "        \"Значение\": [volumes[\"electricity_kWh\"], volumes[\"water_m3\"], volumes[\"hot_water_m3\"], volumes[\"sewage_m3\"], volumes[\"heating_Gcal_month_mid\"]]\n",
-        "    }\n",
-        "    st.table(pd.DataFrame(vol_table))\n",
-        "\n",
-        "    st.markdown(\"**Детализация стоимости (BYN / мес)**\")\n",
-        "    cost_df = pd.DataFrame([\n",
-        "        [\"Электроэнергия\", f\"{volumes['electricity_kWh']} kWh\", tariffs[\"electricity_BYN_per_kWh\"], costs[\"electricity_cost\"]],\n",
-        "        [\"Вода (холод+горяч)\", f\"{volumes['water_m3']} m³\", tariffs[\"water_BYN_per_m3\"], costs[\"water_cost\"]],\n",
-        "        [\"Канализация\", f\"{volumes['sewage_m3']} m³\", tariffs[\"sewage_BYN_per_m3\"], costs[\"sewage_cost\"]],\n",
-        "        [\"Отопление (mid)\", f\"{volumes['heating_Gcal_month_mid']} Gcal\", tariffs[\"heating_BYN_per_Gcal\"], costs[\"heating_cost\"]],\n",
-        "        [\"Газ (если есть)\", \"-\", tariffs[\"gas_BYN_per_m3\"], costs[\"gas_cost\"]],\n",
-        "        [\"Фикс. платежи\", \"-\", \"-\", costs[\"fixed_fees\"]],\n",
-        "        [\"Итого\", \"-\", \"-\", costs[\"total_monthly\"]]\n",
-        "    ], columns=[\"Услуга\", \"Объём\", \"Тариф (BYN)\", \"Стоимость (BYN)\"])\n",
-        "    st.dataframe(cost_df.style.format({2: \"{:.4f}\", 3: \"{:.2f}\"}), height=300)\n",
-        "\n",
-        "with col2:\n",
-        "    st.subheader(\"Ключевые метрики\")\n",
-        "    st.metric(\"Итого (BYN/мес)\", f\"{costs['total_monthly']:.2f}\")\n",
-        "    st.metric(\"Электроэнергия (BYN)\", f\"{costs['electricity_cost']:.2f}\")\n",
-        "    st.metric(\"Отопление (BYN)\", f\"{costs['heating_cost']:.2f}\")\n",
-        "    st.markdown(\"**Диапазон для отопления (Gcal/мес)**\")\n",
-        "    st.write(f\"low: {volumes['heating_Gcal_month_low']}  mid: {volumes['heating_Gcal_month_mid']}  high: {volumes['heating_Gcal_month_high']}\")\n",
-        "\n",
-        "# Plot cost breakdown\n",
-        "st.subheader(\"Визуализация: распределение расходов\")\n",
-        "plot_df = cost_df[cost_df[\"Услуга\"] != \"Итого\"].copy()\n",
-        "plot_df = plot_df.set_index(\"Услуга\")\n",
-        "fig, ax = plt.subplots(figsize=(8,4))\n",
-        "plot_df[\"Стоимость (BYN)\"].astype(float).plot(kind='bar', ax=ax)\n",
-        "ax.set_ylabel(\"BYN / месяц\")\n",
-        "ax.set_xticklabels(plot_df.index, rotation=30, ha='right')\n",
-        "st.pyplot(fig)\n",
-        "\n",
-        "# ---- multi-record report builder ----\n",
-        "if 'report' not in st.session_state:\n",
-        "    st.session_state.report = []\n",
-        "\n",
-        "st.markdown(\"---\")\n",
-        "st.subheader(\"Добавить расчёт в отчет (собрать несколько архетипов)\")\n",
-        "\n",
-        "name = st.text_input(\"Имя записи (например: Minsk - 90m² - 4pers)\", value=f\"Minsk_{int(area_m2)}m2_{occupants}occ\")\n",
-        "if st.button(\"Добавить в отчет\"):\n",
-        "    rec = {\n",
-        "        \"name\": name,\n",
-        "        \"area_m2\": area_m2,\n",
-        "        \"adults\": adults,\n",
-        "        \"children\": children,\n",
-        "        \"profile\": profile,\n",
-        "        \"heating_type\": heating_type,\n",
-        "        \"electricity_kWh\": volumes[\"electricity_kWh\"],\n",
-        "        \"water_m3\": volumes[\"water_m3\"],\n",
-        "        \"heating_Gcal_mid\": volumes[\"heating_Gcal_month_mid\"],\n",
-        "        \"total_BYN\": costs[\"total_monthly\"],\n",
-        "        \"timestamp\": datetime.utcnow().isoformat()\n",
-        "    }\n",
-        "    st.session_state.report.append(rec)\n",
-        "    st.success(\"Запись добавлена в отчёт\")\n",
-        "\n",
-        "if st.session_state.report:\n",
-        "    st.markdown(\"**Отчет — текущие записи**\")\n",
-        "    report_df = pd.DataFrame(st.session_state.report)\n",
-        "    st.dataframe(report_df, height=200)\n",
-        "    csv = report_df.to_csv(index=False).encode('utf-8')\n",
-        "    st.download_button(\"Скачать CSV отчета\", data=csv, file_name=f\"utility_report_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.csv\", mime=\"text/csv\")\n",
-        "\n",
-        "# ---- small guide / calibration ----\n",
-        "st.markdown(\"---\")\n",
-        "with st.expander(\"Как откалибровать модель на реальной квитанции (5 минут)\"):\n",
-        "    st.write(\"\"\"\n",
-        "    1. Возьмите одну реальную квитанцию (поквартальная или помесячная) и найдите:\n",
-        "       - объем электроэнергии (kWh) или сумму по электроэнергии,\n",
-        "       - объем воды (m³),\n",
-        "       - сумму за отопление (или объем в Гкал, если указан).\n",
-        "    2. Введите в форму площадь и количество проживающих.\n",
-        "    3. Нажмите \"Добавить в отчет\" — затем скачайте CSV.\n",
-        "    4. Для подгонки: вычислите коэффициент scale = (реальная сумма / модельная сумма).\n",
-        "       - Можно применить scale к elec_per_person_kWh или редактировать elec_base_kWh / elec_per_m2_kWh.\n",
-        "    5. После подгонки модель даст прогнозы на 12 месяцев и диапазоны (eco/avg/int).\n",
-        "    \"\"\")\n",
-        "    st.write(\"Если нужно, я могу подготовить автоматическую процедуру калибровки по одной квитанции (включая оптимизацию коэффициентов).\")\n",
-        "\n",
-        "st.markdown(\"---\")\n",
-        "st.caption(\"Разработано как демонстрация модели 'типовых домохозяйств'. Тарифы предварительно заполнены для Минска на основе источников Energosbyt / Minskvodokanal. Для реальных деплоев требуется согласование и проверка тарифных формул (особенно для отопления и субсидий).\")\n"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/",
-          "height": 1000
-        },
-        "id": "HIdOLmwgcGyC",
-        "outputId": "cfd1d99d-9c7e-472e-e90c-8bc9e2fcc5c6"
-      },
-      "execution_count": 5,
-      "outputs": [
-        {
-          "output_type": "stream",
-          "name": "stderr",
-          "text": [
-            "2025-09-01 08:52:39.459 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.461 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.586 \n",
-            "  \u001b[33m\u001b[1mWarning:\u001b[0m to view this Streamlit app on a browser, run it with the following\n",
-            "  command:\n",
-            "\n",
-            "    streamlit run /usr/local/lib/python3.12/dist-packages/colab_kernel_launcher.py [ARGUMENTS]\n",
-            "2025-09-01 08:52:39.587 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.588 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.589 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.590 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.591 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.594 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.599 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.600 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.600 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.601 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.602 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.602 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.603 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.604 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.605 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.605 Session state does not function when running a script without `streamlit run`\n",
-            "2025-09-01 08:52:39.606 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.607 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.608 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.609 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.610 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.610 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.611 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.612 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.612 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.613 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.613 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.614 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.615 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.615 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.616 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.616 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.617 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.618 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.618 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.619 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.620 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.621 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.621 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.622 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.622 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.623 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.623 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.624 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.625 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.625 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.626 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.627 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.627 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.628 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.628 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.629 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.629 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.630 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.630 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.631 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.631 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.632 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.632 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.633 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.633 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.634 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.635 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.635 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.636 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.636 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.637 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.637 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.638 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.638 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.639 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.639 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.640 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.641 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.641 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.642 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.642 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.643 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.643 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.644 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.644 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.645 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.646 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.646 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.647 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.647 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.648 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.648 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.649 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.649 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.650 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.650 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.651 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.651 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.652 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.652 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.653 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.654 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.654 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.655 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.655 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.656 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.656 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.657 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.657 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.658 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.659 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.659 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.660 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.660 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.661 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.661 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.662 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.662 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.663 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.663 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.664 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.664 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.665 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.666 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.666 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.667 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.667 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.668 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.668 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.669 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.670 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.670 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.671 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.671 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.672 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.673 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.673 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.674 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.674 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.675 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.675 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.676 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.677 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.677 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.678 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.678 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.679 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.680 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.681 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.681 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.682 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.683 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.684 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.684 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.687 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.688 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.688 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.689 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.690 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.690 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.692 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.761 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.762 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.763 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.764 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.764 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.765 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.934 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.944 Serialization of dataframe to Arrow table was unsuccessful. Applying automatic fixes for column types to make the dataframe Arrow-compatible.\n",
-            "Traceback (most recent call last):\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/streamlit/dataframe_util.py\", line 821, in convert_pandas_df_to_arrow_bytes\n",
-            "    table = pa.Table.from_pandas(df)\n",
-            "            ^^^^^^^^^^^^^^^^^^^^^^^^\n",
-            "  File \"pyarrow/table.pxi\", line 4751, in pyarrow.lib.Table.from_pandas\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/pyarrow/pandas_compat.py\", line 625, in dataframe_to_arrays\n",
-            "    arrays = [convert_column(c, f)\n",
-            "              ^^^^^^^^^^^^^^^^^^^^\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/pyarrow/pandas_compat.py\", line 612, in convert_column\n",
-            "    raise e\n",
-            "  File \"/usr/local/lib/python3.12/dist-packages/pyarrow/pandas_compat.py\", line 606, in convert_column\n",
-            "    result = pa.array(col, type=type_, from_pandas=True, safe=safe)\n",
-            "             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
-            "  File \"pyarrow/array.pxi\", line 360, in pyarrow.lib.array\n",
-            "  File \"pyarrow/array.pxi\", line 87, in pyarrow.lib._ndarray_to_array\n",
-            "  File \"pyarrow/error.pxi\", line 92, in pyarrow.lib.check_status\n",
-            "pyarrow.lib.ArrowInvalid: (\"Could not convert '-' with type str: tried to convert to double\", 'Conversion failed for column Тариф (BYN) with type object')\n",
-            "2025-09-01 08:52:39.949 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.950 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.951 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.952 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.953 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.954 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.955 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.956 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.961 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.962 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.963 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.964 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.965 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.965 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.966 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.967 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.967 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.968 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.972 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.973 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.974 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.975 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.975 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:39.976 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.101 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.327 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.328 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.329 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.331 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.332 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.332 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.334 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.334 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.335 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.336 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.337 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.338 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.339 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.340 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.341 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.342 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.343 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.343 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.344 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.345 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.346 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.347 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.349 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.349 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.350 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.351 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.352 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.355 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.356 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.357 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.357 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.358 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.358 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.359 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.360 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.360 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.361 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.361 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.362 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.363 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.363 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-            "2025-09-01 08:52:40.364 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n"
-          ]
-        },
-        {
-          "output_type": "execute_result",
-          "data": {
-            "text/plain": [
-              "DeltaGenerator()"
-            ]
-          },
-          "metadata": {},
-          "execution_count": 5
-        },
-        {
-          "output_type": "display_data",
-          "data": {
-            "text/plain": [
-              "<Figure size 800x400 with 1 Axes>"
-            ],
-            "image/png": "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/P/zNaGhoTAwMICVlVUmlJCIiIiIspNsFXZjYmJw8+ZN5fmdO3cQGhoKS0tL2Nraonnz5jh79iy2bt2KpKQkhIeHAwAsLS2RM2dOHDt2DCdOnEDdunVhamqKY8eOYcCAAWjXrh3y5cuXVR+LiIiIiLJItgq7p0+fRt26dZXnmra0HTp0wJgxY7BlyxYAQKVKlbRet3//ftSpUwfGxsZYu3YtxowZg7i4ODg6OmLAgAFabXKJiIiI6MuRrcJunTp1ICIfnP9f8wCgSpUqOH78uK6LRURERESfqc+6n10iIiIiov/CsEtEREREeothl4iIiIj0FsMuEREREekthl0iIiIi0lsMu0RERESktxh2iYiIiEhvMewSERERkd5i2CUiIiIivcWwS0RERER6K0OHC05MTESDBg0AADlz5kRISEhGvh0RERERkRadhN3KlStDpVKlmC4iOH/+PM6ePQsDA1YiExEREVHm0knYbdasWarTExIScP78eTg7O+vibYiIiIiI0kQnYXf06NGpTo+NjcXkyZN18RZERERERGmWoW0LUmvaQERERESUWdiQloiIiIj0lk6aMQQHB6c6PSkpSRerJyIiIiL6JDoJu+fOnfvgvFq1auniLYiIiIiI0kwnYXf//v26WA0RERERkU6xzS4RERER6S2d1OxWqVLlP+efPXtWF29DRERERJQmOgm7oaGhGDhwIPLmzQsRweTJk9G9e3dYWlrqYvVERERERJ9EJ2EXAAYNGgQrKysAwMyZM9GvXz8UK1ZMV6snIiIiIkoznbTZNTExQUxMDAAgMTERsbGxGDx4sDKNiIiIiCgr6CTsVqxYESNGjMDx48cxePBg2NjYwNDQEC4uLrh8+bIu3oKIiIiIKM100oxh5syZaNGiBX7//XeYm5tj1apV8PPzw6xZs1CzZk28ePFCF29DRERERJQmOgm71atXx8OHD/H06VNYWlrC0NAQQPLIaq6urrp4CyIiIiKiNNPZDWoAULBgwRTTPDw8dPkWREREREQfTSdtdidPnoylS5emmL506VJMnTpVF29BRERERJRmOgm7P/30E8qUKZNievny5bFo0SJdvAURERERUZrpJOyGh4fD1tY2xfSCBQvi8ePHungLIiIiIqI000nYdXBwwJEjR1JMP3LkCOzs7HTxFkREREREaaaTsNu1a1f0798fy5Yt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evbsCQOD5Azdp08fuLu766SgRERERERpla6a3cjISNjY2AAA8ubNCxMTE+TLl0+Zny9fPrx69Sp9JSQiIiIi+kTpCrsAoFKp/vM5EREREVFWSfegEh07doSxsTEAIDY2Ft27d4eJiQmA5JHViIiIiIiySrrCbocOHbSet2vXLsUy7du3T89bEBERERF9snSF3WXLlumqHEREREREOpfuNrtERERERNkVwy4RERER6S2GXSIiIiLSWwy7RERERKS3GHaJiIiISG8x7BIRERGR3mLYJSIiIiK9xbBLRERERHqLYZeIiIiI9BbDLhERERHpLYZdIiIiItJbDLtEREREpLcYdomIiIhIbzHsEhEREZHeYtglIiIiIr3FsEtEREREeothl4iIiIj0FsMuEREREekthl0iIiIi0lsMu0RERESktxh2iYiIiEhvfVZhd8yYMVCpVFqPMmXKKPNjY2PRq1cv5M+fH3nz5kVgYCAiIiKysMRERERElJWMsroAaVW+fHns2bNHeW5k9O9HGDBgALZt24Z169bB3NwcvXv3RkBAAI4cOZIVRf2fig7dltVF0Km7U/yyughEREREWj67sGtkZAQbG5sU06OiorBkyRKsWbMG9erVAwAsW7YMZcuWxfHjx+Hu7p7ZRSUiIiKiLPZZNWMAgBs3bsDOzg7FihVD27Ztcf/+fQDAmTNnkJCQgPr16yvLlilTBoULF8axY8c+uL64uDhER0drPYiIiIhIP3xWYdfNzQ2//vorQkJCsHDhQty5cweenp549eoVwsPDkTNnTlhYWGi9xtraGuHh4R9c5+TJk2Fubq48HBwcMvhTEBEREVFm+ayaMfj4+Cj/d3JygpubG4oUKYI//vgDuXPn/qR1Dhs2DMHBwcrz6OhoBl4iIiIiPfFZ1ey+z8LCAqVKlcLNmzdhY2OD+Ph4vHz5UmuZiIiIVNv4ahgbG8PMzEzrQURERET64bMOuzExMbh16xZsbW1RtWpV5MiRA3v37lXmX7t2Dffv30f16tWzsJRERERElFU+q2YM3333Hfz9/VGkSBGEhYVh9OjRMDQ0RJs2bWBubo6goCAEBwfD0tISZmZm6NOnD6pXr86eGIiIiIi+UJ9V2H348CHatGmD58+fo2DBgvDw8MDx48dRsGBBAMAPP/wAAwMDBAYGIi4uDg0bNsSPP/6YxaUmIiIioqzyWYXdtWvX/uf8XLlyYcGCBViwYEEmlYiIiIiIsrPPus0uEREREdF/YdglIiIiIr3FsEtEREREeothl4iIiIj0FsMuEREREekthl0iIiIi0lsMu0RERESktxh2iYiIiEhvMewSERERkd5i2CUiIiIivcWwS0RERER6i2GXiIiIiPQWwy4RERER6S2GXSIiIiLSWwy7RERERKS3GHaJiIiISG8x7BIRERGR3mLYJSIiIiK9xbBLRERERHqLYZeIiIiI9BbDLhERERHpLYZdIiIiItJbDLtEREREpLcYdomIiIhIbzHsEhEREZHeYtglIiIiIr3FsEtEREREeothl4iIiIj0FsMuEREREekthl0iIiIi0lsMu0RERESktz6rsDt58mRUq1YNpqamsLKyQrNmzXDt2jWtZerUqQOVSqX16N69exaVmIiIiIiy0mcVdg8ePIhevXrh+PHj2L17NxISEtCgQQO8fv1aa7muXbvi8ePHymPatGlZVGIiIiIiykpGWV2AtAgJCdF6/uuvv8LKygpnzpxBrVq1lOl58uSBjY1NZhePiIiIiLKZz6pm931RUVEAAEtLS63pq1evRoECBVChQgUMGzYMb968+eA64uLiEB0drfUgIiIiIv3wWdXsvkutVqN///6oWbMmKlSooEz/+uuvUaRIEdjZ2eH8+fMYMmQIrl27hg0bNqS6nsmTJ2Ps2LGZVWz6jBQdui2ri6Azd6f4ZXURiIiIssRnG3Z79eqFixcv4u+//9aa/u233yr/r1ixImxtbeHl5YVbt26hePHiKdYzbNgwBAcHK8+jo6Ph4OCQcQUnIiIiokzzWYbd3r17Y+vWrTh06BDs7e3/c1k3NzcAwM2bN1MNu8bGxjA2Ns6QchIRERFR1vqswq6IoE+fPti4cSMOHDgAR0fH//ma0NBQAICtrW0Gl46IiIiIspvPKuz26tULa9aswebNm2Fqaorw8HAAgLm5OXLnzo1bt25hzZo18PX1Rf78+XH+/HkMGDAAtWrVgpOTUxaXnoiIiIgy22cVdhcuXAggeeCIdy1btgwdO3ZEzpw5sWfPHsyePRuvX7+Gg4MDAgMDMXLkyCwoLRERERFltc8q7IrIf853cHDAwYMHM6k0RERERJTdfdb97BIRERER/ReGXSIiIiLSWwy7RERERKS3GHaJiIiISG8x7BIRERGR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\n"
-          },
-          "metadata": {}
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [],
-      "metadata": {
-        "id": "q4K8v19GdilK"
-      },
-      "execution_count": 5,
-      "outputs": []
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/"
-        },
-        "id": "51d4c3fc",
-        "outputId": "1374cd2a-49fd-4ee5-f789-33f4ca72d7f8"
-      },
-      "source": [
-        "!pip install streamlit"
-      ],
-      "execution_count": 6,
-      "outputs": [
-        {
-          "output_type": "stream",
-          "name": "stdout",
-          "text": [
-            "Requirement already satisfied: streamlit in /usr/local/lib/python3.12/dist-packages (1.49.1)\n",
-            "Requirement already satisfied: altair!=5.4.0,!=5.4.1,<6,>=4.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (5.5.0)\n",
-            "Requirement already satisfied: blinker<2,>=1.5.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (1.9.0)\n",
-            "Requirement already satisfied: cachetools<7,>=4.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (5.5.2)\n",
-            "Requirement already satisfied: click<9,>=7.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (8.2.1)\n",
-            "Requirement already satisfied: numpy<3,>=1.23 in /usr/local/lib/python3.12/dist-packages (from streamlit) (2.0.2)\n",
-            "Requirement already satisfied: packaging<26,>=20 in /usr/local/lib/python3.12/dist-packages (from streamlit) (25.0)\n",
-            "Requirement already satisfied: pandas<3,>=1.4.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (2.2.2)\n",
-            "Requirement already satisfied: pillow<12,>=7.1.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (11.3.0)\n",
-            "Requirement already satisfied: protobuf<7,>=3.20 in /usr/local/lib/python3.12/dist-packages (from streamlit) (5.29.5)\n",
-            "Requirement already satisfied: pyarrow>=7.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (18.1.0)\n",
-            "Requirement already satisfied: requests<3,>=2.27 in /usr/local/lib/python3.12/dist-packages (from streamlit) (2.32.4)\n",
-            "Requirement already satisfied: tenacity<10,>=8.1.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (8.5.0)\n",
-            "Requirement already satisfied: toml<2,>=0.10.1 in /usr/local/lib/python3.12/dist-packages (from streamlit) (0.10.2)\n",
-            "Requirement already satisfied: typing-extensions<5,>=4.4.0 in /usr/local/lib/python3.12/dist-packages (from streamlit) (4.15.0)\n",
-            "Requirement already satisfied: watchdog<7,>=2.1.5 in /usr/local/lib/python3.12/dist-packages (from streamlit) (6.0.0)\n",
-            "Requirement already satisfied: gitpython!=3.1.19,<4,>=3.0.7 in /usr/local/lib/python3.12/dist-packages (from streamlit) (3.1.45)\n",
-            "Requirement already satisfied: pydeck<1,>=0.8.0b4 in /usr/local/lib/python3.12/dist-packages (from streamlit) (0.9.1)\n",
-            "Requirement already satisfied: tornado!=6.5.0,<7,>=6.0.3 in /usr/local/lib/python3.12/dist-packages (from streamlit) (6.4.2)\n",
-            "Requirement already satisfied: jinja2 in /usr/local/lib/python3.12/dist-packages (from altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (3.1.6)\n",
-            "Requirement already satisfied: jsonschema>=3.0 in /usr/local/lib/python3.12/dist-packages (from altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (4.25.1)\n",
-            "Requirement already satisfied: narwhals>=1.14.2 in /usr/local/lib/python3.12/dist-packages (from altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (2.2.0)\n",
-            "Requirement already satisfied: gitdb<5,>=4.0.1 in /usr/local/lib/python3.12/dist-packages (from gitpython!=3.1.19,<4,>=3.0.7->streamlit) (4.0.12)\n",
-            "Requirement already satisfied: python-dateutil>=2.8.2 in /usr/local/lib/python3.12/dist-packages (from pandas<3,>=1.4.0->streamlit) (2.9.0.post0)\n",
-            "Requirement already satisfied: pytz>=2020.1 in /usr/local/lib/python3.12/dist-packages (from pandas<3,>=1.4.0->streamlit) (2025.2)\n",
-            "Requirement already satisfied: tzdata>=2022.7 in /usr/local/lib/python3.12/dist-packages (from pandas<3,>=1.4.0->streamlit) (2025.2)\n",
-            "Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/dist-packages (from requests<3,>=2.27->streamlit) (3.4.3)\n",
-            "Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/dist-packages (from requests<3,>=2.27->streamlit) (3.10)\n",
-            "Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.12/dist-packages (from requests<3,>=2.27->streamlit) (2.5.0)\n",
-            "Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.12/dist-packages (from requests<3,>=2.27->streamlit) (2025.8.3)\n",
-            "Requirement already satisfied: smmap<6,>=3.0.1 in /usr/local/lib/python3.12/dist-packages (from gitdb<5,>=4.0.1->gitpython!=3.1.19,<4,>=3.0.7->streamlit) (5.0.2)\n",
-            "Requirement already satisfied: MarkupSafe>=2.0 in /usr/local/lib/python3.12/dist-packages (from jinja2->altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (3.0.2)\n",
-            "Requirement already satisfied: attrs>=22.2.0 in /usr/local/lib/python3.12/dist-packages (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (25.3.0)\n",
-            "Requirement already satisfied: jsonschema-specifications>=2023.03.6 in /usr/local/lib/python3.12/dist-packages (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (2025.4.1)\n",
-            "Requirement already satisfied: referencing>=0.28.4 in /usr/local/lib/python3.12/dist-packages (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (0.36.2)\n",
-            "Requirement already satisfied: rpds-py>=0.7.1 in /usr/local/lib/python3.12/dist-packages (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<6,>=4.0->streamlit) (0.27.0)\n",
-            "Requirement already satisfied: six>=1.5 in /usr/local/lib/python3.12/dist-packages (from python-dateutil>=2.8.2->pandas<3,>=1.4.0->streamlit) (1.17.0)\n"
-          ]
-        }
-      ]
-    }
-  ]
+# app.py
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from io import BytesIO
+from datetime import datetime
+
+st.set_page_config(page_title="Utility Benchmark Demo — Typical Households", page_icon="🏠", layout="wide")
+
+# ---- Helper / model functions ----
+profiles = {"eco": 0.85, "average": 1.0, "intensive": 1.15}
+
+# Default tariffs (pre-filled for Minsk as agreed)
+DEFAULT_TARIFFS = {
+    "electricity_BYN_per_kWh": 0.254,     # BYN / kWh
+    "water_BYN_per_m3": 1.7858,          # BYN / m3 (cold+hot combined tariff used for simplicity)
+    "sewage_BYN_per_m3": 0.9586,         # BYN / m3
+    "heating_BYN_per_Gcal": 135.0,       # BYN / Gcal
+    "gas_BYN_per_m3": 0.10,              # BYN / m3 (placeholder, rarely used if central heating)
+    "fixed_fees_BYN": 5.0                # BYN / month (administration, trash etc.)
 }
+
+# Coefficients (tweakable)
+DEFAULT_COEFFS = {
+    "elec_base_kWh": 40.0,
+    "elec_per_person_kWh": 35.0,
+    "elec_per_m2_kWh": 0.25,
+    "water_per_person_m3": 3.5,
+    "hot_water_fraction": 0.45,
+    "heating_Gcal_per_m2_season_low": 0.08,
+    "heating_Gcal_per_m2_season_mid": 0.10,
+    "heating_Gcal_per_m2_season_high": 0.12,
+    "heating_season_months": 7.0
+}
+
+def calculate_volumes(area_m2: float, occupants: int, profile: str, coeffs: dict = DEFAULT_COEFFS):
+    pf = profiles.get(profile, 1.0)
+    elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"] * occupants + coeffs["elec_per_m2_kWh"] * area_m2) * pf
+    water = coeffs["water_per_person_m3"] * occupants * pf
+    hot_water = water * coeffs["hot_water_fraction"]
+    sewage = water
+    G_low = coeffs["heating_Gcal_per_m2_season_low"] * area_m2
+    G_mid = coeffs["heating_Gcal_per_m2_season_mid"] * area_m2
+    G_high = coeffs["heating_Gcal_per_m2_season_high"] * area_m2
+    heat_monthly_low = G_low / coeffs["heating_season_months"]
+    heat_monthly_mid = G_mid / coeffs["heating_season_months"]
+    heat_monthly_high = G_high / coeffs["heating_season_months"]
+    volumes = {
+        "electricity_kWh": round(elec, 1),
+        "water_m3": round(water, 2),
+        "hot_water_m3": round(hot_water, 2),
+        "sewage_m3": round(sewage, 2),
+        "heating_Gcal_month_low": round(heat_monthly_low, 3),
+        "heating_Gcal_month_mid": round(heat_monthly_mid, 3),
+        "heating_Gcal_month_high": round(heat_monthly_high, 3)
+    }
+    return volumes
+
+def calculate_costs(volumes: dict, tariffs: dict, heating_scenario="mid"):
+    elec_cost = volumes["electricity_kWh"] * tariffs["electricity_BYN_per_kWh"]
+    water_cost = volumes["water_m3"] * tariffs["water_BYN_per_m3"]
+    sewage_cost = volumes["sewage_m3"] * tariffs["sewage_BYN_per_m3"]
+    if heating_scenario == "low":
+        heat_cost = volumes["heating_Gcal_month_low"] * tariffs["heating_BYN_per_Gcal"]
+    elif heating_scenario == "high":
+        heat_cost = volumes["heating_Gcal_month_high"] * tariffs["heating_BYN_per_Gcal"]
+    else:
+        heat_cost = volumes["heating_Gcal_month_mid"] * tariffs["heating_BYN_per_Gcal"]
+    gas_cost = 0.0
+    fixed = tariffs.get("fixed_fees_BYN", 0.0)
+    costs = {
+        "electricity_cost": round(elec_cost, 2),
+        "water_cost": round(water_cost, 2),
+        "sewage_cost": round(sewage_cost, 2),
+        "heating_cost": round(heat_cost, 2),
+        "gas_cost": round(gas_cost, 2),
+        "fixed_fees": round(fixed, 2)
+    }
+    costs["total_monthly"] = round(sum(costs.values()), 2)
+    return costs
+
+# ---- UI layout ----
+st.title("🏠 Демо: Моделирование типовых домохозяйств — расчёт коммунальных платежей")
+st.markdown("""
+**Цель:** быстро моделировать объёмы потребления и месячные расходы для типовых домохозяйств, 
+показывая диапазон (eco / average / intensive) и позволяя калибровать модель по реальной квитанции.
+""")
+
+# Left column: inputs
+with st.sidebar:
+    st.header("Настройки модели")
+    st.subheader("Архетип (ввод)")
+    area_m2 = st.number_input("Площадь, м²", min_value=10.0, max_value=1000.0, value=90.0, step=1.0)
+    adults = st.number_input("Взрослые", min_value=0, max_value=10, value=2, step=1)
+    children = st.number_input("Дети", min_value=0, max_value=10, value=2, step=1)
+    profile = st.selectbox("Профиль поведения", options=["eco", "average", "intensive"], index=1, format_func=lambda x: x.capitalize())
+    heating_type = st.selectbox("Тип отопления (информативно)", options=["central (district)", "gas boiler", "electric heating"], index=0)
+    st.markdown("---")
+    st.subheader("Тарифы (BYN) — редактируемые")
+    t_elec = st.number_input("Электроэнергия, BYN / kWh", value=DEFAULT_TARIFFS["electricity_BYN_per_kWh"], format="%.6f")
+    t_water = st.number_input("Вода, BYN / m³", value=DEFAULT_TARIFFS["water_BYN_per_m3"], format="%.6f")
+    t_sewage = st.number_input("Канализация, BYN / m³", value=DEFAULT_TARIFFS["sewage_BYN_per_m3"], format="%.6f")
+    t_heat = st.number_input("Отопление, BYN / Gcal", value=DEFAULT_TARIFFS["heating_BYN_per_Gcal"], format="%.2f")
+    t_gas = st.number_input("Газ, BYN / m³ (если актуально)", value=DEFAULT_TARIFFS["gas_BYN_per_m3"], format="%.6f")
+    t_fixed = st.number_input("Фикс. платежы, BYN / мес", value=DEFAULT_TARIFFS["fixed_fees_BYN"], format="%.2f")
+    st.markdown("---")
+    st.subheader("Коэффициенты (опционально)")
+    elec_base = st.number_input("Elec: базовый kWh (аппараты)", value=DEFAULT_COEFFS["elec_base_kWh"])
+    elec_pp = st.number_input("Elec: kWh на человека/мес", value=DEFAULT_COEFFS["elec_per_person_kWh"])
+    elec_pm2 = st.number_input("Elec: kWh на м²/мес", value=DEFAULT_COEFFS["elec_per_m2_kWh"])
+    water_pp = st.number_input("Вода: m³ на человека/мес", value=DEFAULT_COEFFS["water_per_person_m3"])
+    st.markdown("---")
+    st.write("Справочно: источники тарифов (Минск):")
+    st.write("- Energosbyt / Минскэнергосбыт (электро) — [energosbyt.by]")
+    st.write("- Минскводоканал (вода, канализация) — [minskvodokanal.by]")
+    st.write("**Нажмите 'Добавить в отчет'**, чтобы сохранить расчёт в таблицу справа.")
+
+# Build tariffs and coeffs dicts from sidebar inputs
+tariffs = {
+    "electricity_BYN_per_kWh": float(t_elec),
+    "water_BYN_per_m3": float(t_water),
+    "sewage_BYN_per_m3": float(t_sewage),
+    "heating_BYN_per_Gcal": float(t_heat),
+    "gas_BYN_per_m3": float(t_gas),
+    "fixed_fees_BYN": float(t_fixed)
+}
+coeffs = {
+    "elec_base_kWh": float(elec_base),
+    "elec_per_person_kWh": float(elec_pp),
+    "elec_per_m2_kWh": float(elec_pm2),
+    "water_per_person_m3": float(water_pp),
+    "hot_water_fraction": DEFAULT_COEFFS["hot_water_fraction"],
+    "heating_Gcal_per_m2_season_low": DEFAULT_COEFFS["heating_Gcal_per_m2_season_low"],
+    "heating_Gcal_per_m2_season_mid": DEFAULT_COEFFS["heating_Gcal_per_m2_season_mid"],
+    "heating_Gcal_per_m2_season_high": DEFAULT_COEFFS["heating_Gcal_per_m2_season_high"],
+    "heating_season_months": DEFAULT_COEFFS["heating_season_months"]
+}
+
+# Main area: compute and show
+st.header("Результат расчёта для архетипа")
+occupants = adults + children
+volumes = calculate_volumes(area_m2, occupants, profile, coeffs)
+costs = calculate_costs(volumes, tariffs, heating_scenario="mid")
+
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.subheader(f"Архетип: {area_m2} м², {adults} взрослых, {children} детей — профиль: {profile}")
+    st.markdown("**Объёмы (оценка)**")
+    vol_table = {
+        "Параметр": ["Электричество (kWh/мес)", "Вода (m³/мес)", "Горячая вода (m³/мес)", "Канализация (m³/мес)", 
+                     "Отопление (Gcal/мес, mid)"],
+        "Значение": [volumes["electricity_kWh"], volumes["water_m3"], volumes["hot_water_m3"], volumes["sewage_m3"], volumes["heating_Gcal_month_mid"]]
+    }
+    st.table(pd.DataFrame(vol_table))
+
+    st.markdown("**Детализация стоимости (BYN / мес)**")
+    cost_df = pd.DataFrame([
+        ["Электроэнергия", f"{volumes['electricity_kWh']} kWh", tariffs["electricity_BYN_per_kWh"], costs["electricity_cost"]],
+        ["Вода (холод+горяч)", f"{volumes['water_m3']} m³", tariffs["water_BYN_per_m3"], costs["water_cost"]],
+        ["Канализация", f"{volumes['sewage_m3']} m³", tariffs["sewage_BYN_per_m3"], costs["sewage_cost"]],
+        ["Отопление (mid)", f"{volumes['heating_Gcal_month_mid']} Gcal", tariffs["heating_BYN_per_Gcal"], costs["heating_cost"]],
+        ["Газ (если есть)", "-", tariffs["gas_BYN_per_m3"], costs["gas_cost"]],
+        ["Фикс. платежи", "-", "-", costs["fixed_fees"]],
+        ["Итого", "-", "-", costs["total_monthly"]]
+    ], columns=["Услуга", "Объём", "Тариф (BYN)", "Стоимость (BYN)"])
+    st.dataframe(cost_df.style.format({2: "{:.4f}", 3: "{:.2f}"}), height=300)
+
+with col2:
+    st.subheader("Ключевые метрики")
+    st.metric("Итого (BYN/мес)", f"{costs['total_monthly']:.2f}")
+    st.metric("Электроэнергия (BYN)", f"{costs['electricity_cost']:.2f}")
+    st.metric("Отопление (BYN)", f"{costs['heating_cost']:.2f}")
+    st.markdown("**Диапазон для отопления (Gcal/мес)**")
+    st.write(f"low: {volumes['heating_Gcal_month_low']}  mid: {volumes['heating_Gcal_month_mid']}  high: {volumes['heating_Gcal_month_high']}")
+
+# Plot cost breakdown
+st.subheader("Визуализация: распределение расходов")
+plot_df = cost_df[cost_df["Услуга"] != "Итого"].copy()
+plot_df = plot_df.set_index("Услуга")
+fig, ax = plt.subplots(figsize=(8,4))
+plot_df["Стоимость (BYN)"].astype(float).plot(kind='bar', ax=ax)
+ax.set_ylabel("BYN / месяц")
+ax.set_xticklabels(plot_df.index, rotation=30, ha='right')
+st.pyplot(fig)
+
+# ---- multi-record report builder ----
+if 'report' not in st.session_state:
+    st.session_state.report = []
+
+st.markdown("---")
+st.subheader("Добавить расчёт в отчет (собрать несколько архетипов)")
+
+name = st.text_input("Имя записи (например: Minsk - 90m² - 4pers)", value=f"Minsk_{int(area_m2)}m2_{occupants}occ")
+if st.button("Добавить в отчет"):
+    rec = {
+        "name": name,
+        "area_m2": area_m2,
+        "adults": adults,
+        "children": children,
+        "profile": profile,
+        "heating_type": heating_type,
+        "electricity_kWh": volumes["electricity_kWh"],
+        "water_m3": volumes["water_m3"],
+        "heating_Gcal_mid": volumes["heating_Gcal_month_mid"],
+        "total_BYN": costs["total_monthly"],
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    st.session_state.report.append(rec)
+    st.success("Запись добавлена в отчёт")
+
+if st.session_state.report:
+    st.markdown("**Отчет — текущие записи**")
+    report_df = pd.DataFrame(st.session_state.report)
+    st.dataframe(report_df, height=200)
+    csv = report_df.to_csv(index=False).encode('utf-8')
+    st.download_button("Скачать CSV отчета", data=csv, file_name=f"utility_report_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.csv", mime="text/csv")
+
+# ---- small guide / calibration ----
+st.markdown("---")
+with st.expander("Как откалибровать модель на реальной квитанции (5 минут)"):
+    st.write("""
+    1. Возьмите одну реальную квитанцию (поквартальная или помесячная) и найдите:
+       - объем электроэнергии (kWh) или сумму по электроэнергии,
+       - объем воды (m³),
+       - сумму за отопление (или объем в Гкал, если указан).
+    2. Введите в форму площадь и количество проживающих.
+    3. Нажмите "Добавить в отчет" — затем скачайте CSV.
+    4. Для подгонки: вычислите коэффициент scale = (реальная сумма / модельная сумма).
+       - Можно применить scale к elec_per_person_kWh или редактировать elec_base_kWh / elec_per_m2_kWh.
+    5. После подгонки модель даст прогнозы на 12 месяцев и диапазоны (eco/avg/int).
+    """)
+    st.write("Если нужно, я могу подготовить автоматическую процедуру калибровки по одной квитанции (включая оптимизацию коэффициентов).")
+
+st.markdown("---")
+st.caption("Разработано как демонстрация модели 'типовых домохозяйств'. Тарифы предварительно заполнены для Минска на основе источников Energosbyt / Minskvodokanal. Для реальных деплоев требуется согласование и проверка тарифных формул (особенно для отопления и субсидий).")
