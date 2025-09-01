@@ -1,8 +1,6 @@
 # app.py
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
 
 st.set_page_config(
     page_title="Utility Benchmark Dashboard",
@@ -99,18 +97,13 @@ user_costs = calculate_costs(user_volumes, DEFAULT_TARIFFS)
 typical_volumes = calculate_volumes(area_m2, occupants, "average", month=month)
 typical_costs = calculate_costs(typical_volumes, DEFAULT_TARIFFS)
 
-eco_total = calculate_costs(user_volumes, DEFAULT_TARIFFS, heating_scenario="low")["total_monthly"]
-average_total = typical_costs["total_monthly"]
-intensive_total = calculate_costs(user_volumes, DEFAULT_TARIFFS, heating_scenario="high")["total_monthly"]
-user_total = user_costs["total_monthly"]
-
 # ---- Дашборд ----
 st.title("🏠 Моделирование типового домохозяйства")
 st.subheader(f"Месяц: {month}")
 
 col1, col2 = st.columns(2)
 with col1:
-    st.metric("Ваши расходы (BYN/мес)", f"{user_total}")
+    st.metric("Ваши расходы (BYN/мес)", f"{user_costs['total_monthly']}")
     st.metric("Электроэнергия", f"{user_costs['electricity_cost']}")
     st.metric("Отопление", f"{user_costs['heating_cost']}")
 with col2:
@@ -118,35 +111,22 @@ with col2:
     st.metric("Электроэнергия", f"{typical_costs['electricity_cost']}")
     st.metric("Отопление", f"{typical_costs['heating_cost']}")
 
-# ---- Спидометр ----
-st.subheader("Итоговые расходы: где вы находитесь")
-fig_gauge = go.Figure(go.Indicator(
-    mode="gauge+number+delta",
-    value=user_total,
-    delta={'reference': average_total, 'increasing': {'color': "red"}},
-    gauge={
-        'axis': {'range': [eco_total, intensive_total]},
-        'bar': {'color': "blue"},
-        'steps': [
-            {'range': [eco_total, average_total], 'color': "lightgreen"},
-            {'range': [average_total, intensive_total], 'color': "lightcoral"}
-        ],
-        'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': user_total}
-    },
-    title={'text': "Итоговые расходы (BYN/мес)"}
-))
-st.plotly_chart(fig_gauge)
-
-# ---- Пузырьковая диаграмма ----
+# ---- Бар-чарт для сравнения расходов ----
 st.subheader("Сравнение расходов по услугам")
-bubble_df = pd.DataFrame({
-    "Услуга": ["Электроэнергия","Вода","Отопление"],
-    "Пользователь": [user_costs["electricity_cost"], user_costs["water_cost"], user_costs["heating_cost"]],
-    "Типовое": [typical_costs["electricity_cost"], typical_costs["water_cost"], typical_costs["heating_cost"]]
-})
-bubble_df_long = bubble_df.melt(id_vars="Услуга", value_vars=["Пользователь","Типовое"],
-                                var_name="Тип", value_name="Стоимость")
+compare_chart_df = pd.DataFrame({
+    "Ваши показатели": [user_costs["electricity_cost"], user_costs["water_cost"], user_costs["heating_cost"]],
+    "Типовые показатели": [typical_costs["electricity_cost"], typical_costs["water_cost"], typical_costs["heating_cost"]]
+}, index=["Электроэнергия","Вода","Отопление"])
 
-fig_bubble = px.scatter(bubble_df_long, x="Услуга", y="Стоимость", size="Стоимость", color="Тип",
-                        size_max=60, title="Сравнение расходов по услугам")
-st.plotly_chart(fig_bubble)
+st.bar_chart(compare_chart_df)
+
+# ---- Бар-чарт для сравнения объёмов ----
+st.subheader("Сравнение объёмов потребления")
+compare_volumes_df = pd.DataFrame({
+    "Ваши показатели": [user_volumes["electricity_kWh"], user_volumes["water_m3"], user_volumes["hot_water_m3"],
+                        user_volumes["sewage_m3"], user_volumes["heating_Gcal_month_mid"]],
+    "Типовые показатели": [typical_volumes["electricity_kWh"], typical_volumes["water_m3"], typical_volumes["hot_water_m3"],
+                           typical_volumes["sewage_m3"], typical_volumes["heating_Gcal_month_mid"]]
+}, index=["Электроэнергия (kWh)","Вода (m³)","Горячая вода (m³)","Канализация (m³)","Отопление (Gcal)"])
+
+st.bar_chart(compare_volumes_df)
