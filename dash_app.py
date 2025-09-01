@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-pip install plotly
 import plotly.graph_objects as go
 
 st.set_page_config(
@@ -142,3 +141,5 @@ for t in bubble_df["Тип"].unique():
 
 fig_bubble.update_layout(height=500)
 st.plotly_chart(fig_bubble, use_container_width=True)
+
+pip install plotly
