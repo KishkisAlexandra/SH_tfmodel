@@ -179,7 +179,7 @@ fig.update_layout(yaxis_title="BYN / месяц", legend_title_text="Показ�
 st.plotly_chart(fig, use_container_width=True)
 
 # ------------------------
-# 💡 Рекомендации с мини-дашбордом
+# 💡 Рекомендации с мини-дашбордом и анимированными прогресс-барами
 # ------------------------
 emoji_map = {
     "Электроэнергия": "💡",
@@ -196,20 +196,20 @@ tips_map = {
 }
 
 def format_percentage(diff, ideal):
-    """Процент перерасхода (относительно нормативного расчета)"""
+    """Процент перерасхода относительно нормативного расхода"""
     perc = (diff / ideal) * 100 if ideal > 0 else 0
     return max(min(perc, 150), 0)  # ограничим 0-150%
 
 def get_gradient_color(perc):
-    """Плавный градиент от зелёного к красному"""
+    """Градиент от зелёного к красному"""
     if perc <= 0:
-        return "#66BB6A"
+        return "#66BB6A"  # зелёный
     elif perc <= 50:
-        return "#FFEB3B"
+        return "#FFEB3B"  # жёлтый
     elif perc <= 100:
-        return "#FF9800"
+        return "#FF9800"  # оранжевый
     else:
-        return "#F44336"
+        return "#F44336"  # красный
 
 st.header("💡 Рекомендации по экономии — мини-дашборд")
 
@@ -224,16 +224,22 @@ for i, cat in enumerate(["Электроэнергия","Вода","Отопле
         st.markdown(f"<div style='text-align:center; font-size:1.5em'>{emoji_map[cat]}</div>", unsafe_allow_html=True)
         st.markdown(f"**{cat}**")
 
-        # Прогресс-бар с градиентом
+        # Анимированный прогресс-бар с градиентом
         st.markdown(f"""
             <div style='background-color:#E0E0E0; border-radius:8px; height:14px; width:100%; margin-bottom:6px;'>
-                <div style='width:{perc}%; background: {get_gradient_color(perc)};
-                            height:100%; border-radius:8px; transition: width 1s;'>
+                <div style='width:0%; background: {get_gradient_color(perc)};
+                            height:100%; border-radius:8px; transition: width 1.2s ease-in-out; animation: fillBar 1.2s forwards;'>
                 </div>
             </div>
+            <style>
+            @keyframes fillBar {{
+                from {{ width: 0%; }}
+                to {{ width: {perc}%; }}
+            }}
+            </style>
         """, unsafe_allow_html=True)
 
-        # Текст рекомендации
+        # Короткий текст рекомендации
         if diff > 0:
             st.markdown(f"<small style='color:#D32F2F'>Перерасход: {diff:.2f} BYN</small>", unsafe_allow_html=True)
             st.markdown(f"<small>{tips_map[cat]}</small>", unsafe_allow_html=True)
