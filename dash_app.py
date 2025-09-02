@@ -2,16 +2,9 @@
 import streamlit as st
 import pandas as pd
 from dataclasses import dataclass
-import plotly.express as px
 
 # ------------------------
-# Настройки страницы
-# ------------------------
-st.set_page_config(page_title="Utility Benchmark — дашборд", page_icon="🏠", layout="wide")
-st.title("🏠 Utility Benchmark")
-
-# ------------------------
-# Новые тарифы и коэффициенты
+# Новые тарифы и настройки
 # ------------------------
 @dataclass
 class UserInput:
@@ -44,11 +37,6 @@ HOUSE_COEFS = {
 
 REALISM_UPLIFT = 1.07
 
-CATEGORIES = ["heating", "water", "electricity", "maintenance", "waste", "elevator"]
-
-# ------------------------
-# Функция расчёта
-# ------------------------
 def calculate_costs(user: UserInput):
     people = user.adults + user.children
     heating = user.area * TARIFFS["heating"] if user.month in HEATING_MONTHS else 0
@@ -81,8 +69,12 @@ def calculate_costs(user: UserInput):
     }
 
 # ------------------------
-# Streamlit: ввод параметров семьи
+# Streamlit интерфейс
 # ------------------------
+st.set_page_config(page_title="Utility Benchmark — дашборд", page_icon="🏠", layout="wide")
+st.title("🏠 Utility Benchmark")
+
+# Sidebar: ввод параметров
 st.sidebar.header("Параметры семьи")
 month = st.sidebar.selectbox("Месяц", list(range(1,13)),
                              format_func=lambda x: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"][x-1])
@@ -104,14 +96,23 @@ user_input = UserInput(
 )
 
 # ------------------------
-# Расчёты норматив и сосед
+# Расчёты
 # ------------------------
 result = calculate_costs(user_input)
 
 # ------------------------
-# Ввод реальных расходов
+# Визуализация
 # ------------------------
-st.header("Введите ваши реальные расходы, BYN")
+st.header("📊 Расчётные расходы")
+st.metric("Нормативные расходы (BYN)", f"{result['normative_total']:.2f}")
+st.metric("Средний сосед (BYN)", f"{result['neighbor_total']:.2f}")
+
+# Таблица детализации
+details_df = pd.DataFrame.from_dict(result['details'], orient='index', columns=["BYN"])
+st.dataframe(details_df.style.format("{:.2f}"))
+
+# Пример сравнения с ручным вводом
+st.header("Введите реальные расходы, BYN")
 user_real = {
     "heating": st.number_input("Отопление", 0.0),
     "water": st.number_input("Вода", 0.0),
@@ -121,61 +122,4 @@ user_real = {
     "elevator": st.number_input("Лифт", 0.0),
 }
 user_real_total = round(sum(user_real.values()), 2)
-
-# ------------------------
-# Метрики
-# ------------------------
-st.header("📊 Итоговые показатели")
-st.metric("Нормативные расходы (BYN)", f"{result['normative_total']:.2f}")
-st.metric("Средний сосед (BYN)", f"{result['neighbor_total']:.2f}")
 st.metric("Ваши реальные расходы (BYN)", f"{user_real_total:.2f}")
-
-# ------------------------
-# Таблица детализации
-# ------------------------
-details_df = pd.DataFrame({
-    "Категория": CATEGORIES,
-    "Норматив (BYN)": [result['details'][c] for c in CATEGORIES],
-    "Ваши реальные расходы (BYN)": [user_real[c] for c in CATEGORIES],
-    "Средний сосед (BYN)": [
-        result['details'][c]*HOUSE_COEFS[house_category].get(c,1)*REALISM_UPLIFT if c in ["heating","electricity"] else result['details'][c]*REALISM_UPLIFT
-        for c in CATEGORIES
-    ]
-})
-st.dataframe(details_df.style.format("{:.2f}"), height=300)
-
-# ------------------------
-# Групповой график Plotly
-# ------------------------
-plot_df = pd.DataFrame({
-    "Категория": CATEGORIES * 3,
-    "Тип": (["Норматив"] * len(CATEGORIES)) +
-           (["Средний сосед"] * len(CATEGORIES)) +
-           (["Ваши реальные данные"] * len(CATEGORIES)),
-    "BYN": [result['details'][c] for c in CATEGORIES] +
-           [result['details'][c]*HOUSE_COEFS[house_category].get(c,1)*REALISM_UPLIFT if c in ["heating","electricity"] else result['details'][c]*REALISM_UPLIFT for c in CATEGORIES] +
-           [user_real[c] for c in CATEGORIES]
-})
-
-fig = px.bar(
-    plot_df,
-    x="Категория",
-    y="BYN",
-    color="Тип",
-    barmode="group",
-    text="BYN",
-    color_discrete_map={
-        "Норматив": "#636EFA",
-        "Средний сосед": "#EF553B",
-        "Ваши реальные данные": "#00CC96"
-    }
-)
-fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-fig.update_layout(
-    yaxis_title="BYN / месяц",
-    legend_title_text="Показатель",
-    uniformtext_minsize=8
-)
-
-st.header("📊 Сравнение расходов по категориям")
-st.plotly_chart(fig, use_container_width=True)
