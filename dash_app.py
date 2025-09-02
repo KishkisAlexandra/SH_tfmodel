@@ -184,6 +184,7 @@ with col1:
     st.info(f"Ваши реальные расходы на {diff_neighbor}% {'выше' if diff_neighbor>0 else 'ниже'} среднего соседа.")
 
 with col2:
+    # Создаем DataFrame с детализацией расходов
     detail_df = pd.DataFrame({
         "Категория": CATEGORIES,
         "Идеальный расчёт (BYN)": [ideal_costs[c] for c in CATEGORIES],
@@ -191,14 +192,14 @@ with col2:
         "Средний сосед (BYN)": [neighbor_costs[c] for c in CATEGORIES],
     })
 
-    # Стилизация как дашборд: градиенты по величине расходов
+    # Стилизация как дашборд с градиентом
     styled_df = detail_df.style.format({
         "Идеальный расчёт (BYN)": "{:.2f}",
         "Ваши реальные данные (BYN)": "{:.2f}",
         "Средний сосед (BYN)": "{:.2f}"
     }).background_gradient(
         subset=["Идеальный расчёт (BYN)", "Ваши реальные данные (BYN)", "Средний сосед (BYN)"],
-        cmap="YlOrRd"
+        cmap="PuBuGn"  # <-- новая цветовая палитра
     ).set_properties(**{
         'text-align': 'center',
         'font-size': '14px'
@@ -206,8 +207,8 @@ with col2:
         {'selector': 'th', 'props': [('text-align', 'center'), ('font-size', '15px'), ('background-color', '#f0f0f0')]}
     ])
 
+    # Отображаем таблицу
     st.dataframe(styled_df, height=280)
-
 
 # ------------------------
 # График расходов
