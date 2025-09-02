@@ -179,8 +179,11 @@ fig.update_layout(yaxis_title="BYN / месяц", legend_title_text="Показ�
 st.plotly_chart(fig, use_container_width=True)
 
 # ------------------------
-# 💡 Рекомендации с мини-дашбордом и анимированными прогресс-барами
+# Рекомендации с прогресс-барами
 # ------------------------
+st.header("💡 Рекомендации (мини-дашборд)")
+
+# Иконки категорий
 emoji_map = {
     "Электроэнергия": "💡",
     "Вода": "🚰",
@@ -189,59 +192,39 @@ emoji_map = {
 }
 
 tips_map = {
-    "Электроэнергия": "Используйте энергосберегающие лампы и приборы.",
-    "Вода": "Установите аэраторы и проверьте трубы на протечки.",
-    "Отопление": "Закрывайте окна и проверяйте терморегуляторы.",
-    "Канализация": "Контролируйте расход воды и исправность сантехники."
+    "Электроэнергия": "Энергосберегающие приборы",
+    "Вода": "Аэраторы и проверка труб",
+    "Отопление": "Контроль температуры",
+    "Канализация": "Следите за сантехникой"
 }
 
-def format_percentage(diff, ideal):
-    """Процент перерасхода относительно нормативного расхода"""
-    perc = (diff / ideal) * 100 if ideal > 0 else 0
-    return max(min(perc, 150), 0)  # ограничим 0-150%
-
-def get_gradient_color(perc):
-    """Градиент от зелёного к красному"""
-    if perc <= 0:
-        return "#66BB6A"  # зелёный
-    elif perc <= 50:
-        return "#FFEB3B"  # жёлтый
-    elif perc <= 100:
-        return "#FF9800"  # оранжевый
+def get_bar_color(percent):
+    if percent < 0:
+        return "#81C784"  # зеленый — расход ниже нормы
+    elif percent < 20:
+        return "#FFF176"  # желтый — небольшой перерасход
     else:
-        return "#F44336"  # красный
+        return "#E57373"  # красный — большой перерасход
 
-st.header("💡 Рекомендации по экономии — мини-дашборд")
-
-# Адаптивные колонки
-cols = st.columns(len(["Электроэнергия","Вода","Отопление","Канализация"]))
-
+# Динамическая сетка карточек
+cols = st.columns(len(emoji_map))
 for i, cat in enumerate(["Электроэнергия","Вода","Отопление","Канализация"]):
     diff = user_real[cat] - ideal_costs[cat]
-    perc = format_percentage(diff, ideal_costs[cat])
-
+    percent_diff = round(diff / ideal_costs[cat] * 100, 1) if ideal_costs[cat] > 0 else 0.0
+    bar_color = get_bar_color(percent_diff)
+    
     with cols[i]:
-        st.markdown(f"<div style='text-align:center; font-size:1.5em'>{emoji_map[cat]}</div>", unsafe_allow_html=True)
-        st.markdown(f"**{cat}**")
-
-        # Анимированный прогресс-бар с градиентом
         st.markdown(f"""
-            <div style='background-color:#E0E0E0; border-radius:8px; height:14px; width:100%; margin-bottom:6px;'>
-                <div style='width:0%; background: {get_gradient_color(perc)};
-                            height:100%; border-radius:8px; transition: width 1.2s ease-in-out; animation: fillBar 1.2s forwards;'>
+            <div style='padding:10px; border-radius:12px; background-color:#F5F5F5; 
+                        text-align:center; min-width:120px;'>
+                <div style='font-size:2em'>{emoji_map[cat]}</div>
+                <strong>{cat}</strong>
+                <div style='margin:6px 0; font-size:0.85em;'>{tips_map[cat]}</div>
+                <div style='height:12px; border-radius:6px; background-color:#E0E0E0;'>
+                    <div style='width:{min(max(percent_diff,0),100)}%; 
+                                background-color:{bar_color}; 
+                                height:12px; border-radius:6px;'></div>
                 </div>
+                <div style='margin-top:4px; font-size:0.8em;'>{percent_diff:+.1f}% от нормы</div>
             </div>
-            <style>
-            @keyframes fillBar {{
-                from {{ width: 0%; }}
-                to {{ width: {perc}%; }}
-            }}
-            </style>
         """, unsafe_allow_html=True)
-
-        # Короткий текст рекомендации
-        if diff > 0:
-            st.markdown(f"<small style='color:#D32F2F'>Перерасход: {diff:.2f} BYN</small>", unsafe_allow_html=True)
-            st.markdown(f"<small>{tips_map[cat]}</small>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<small style='color:#388E3C'>Расход в норме</small>", unsafe_allow_html=True)
