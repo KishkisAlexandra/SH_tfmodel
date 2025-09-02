@@ -101,7 +101,6 @@ children = st.sidebar.number_input("Дети", 0,10,1)
 occupants = adults + children
 scenario = st.sidebar.selectbox("Сценарий поведения", list(SCENARIOS.keys()), index=1)
 behavior_factor = SCENARIOS[scenario]
-
 house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_COEFS.keys()), index=1)
 
 st.sidebar.markdown("---")
@@ -126,32 +125,62 @@ tariffs = {
 # ------------------------
 # Ввод реальных расходов
 # ------------------------
-st.header("📊 Введите ваши реальные расходы за месяц (BYN)")
+st.header("📊 Ваши реальные расходы за месяц (BYN)")
 with st.expander("Показать поля для ручного ввода"):
-    user_real = {
-        "Электроэнергия": st.number_input("Электроэнергия BYN", min_value=0.0, value=0.0, step=1.0),
-        "Вода": st.number_input("Вода BYN", min_value=0.0, value=0.0, step=0.1),
-        "Канализация": st.number_input("Канализация BYN", min_value=0.0, value=0.0, step=0.1),
-        "Отопление": st.number_input("Отопление BYN", min_value=0.0, value=0.0, step=0.1),
-        "Фикс. платежи": st.number_input("Фикс. платежи BYN", min_value=0.0, value=0.0, step=0.1)
-    }
-user_real["Итого"] = round(sum(user_real[k] for k in CATEGORIES), 2)
+    user_real = {c: st.number_input(f"{c} BYN", min_value=0.0, value=0.0, step=0.1) for c in CATEGORIES}
+user_real["Итого"] = round(sum(user_real[c] for c in CATEGORIES),2)
 
 # ------------------------
-# Расчёт идеального и соседа
+# Расчёт
 # ------------------------
-ideal_vol = calculate_volumes(area_m2, occupants, behavior_factor, coeffs=DEFAULT_COEFFS, month=month)
+ideal_vol = calculate_volumes(area_m2, occupants, behavior_factor, month=month)
 ideal_costs = calculate_costs_from_volumes(ideal_vol, tariffs, subsidy=use_subsidy, subsidy_rate=subsidy_rate)
 
-neighbor_vol = calculate_volumes(area_m2, occupants, 1.0, coeffs=DEFAULT_COEFFS, month=month)
+neighbor_vol = calculate_volumes(area_m2, occupants, 1.0, month=month)
 neighbor_costs = apply_neighbor_adjustment(neighbor_vol, tariffs, house_category)
 
 # ------------------------
 # Метрики
 # ------------------------
 st.header("🏠 Сравнение расходов")
-col1, col2 = st.columns([2, 1])
-
+col1, col2 = st.columns([2,1])
 with col1:
-    st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']:.2f}")
-    st.metric("Ваши реальные расходы, BYN", f
+    st.metric("Идеальный расчёт, BYN", f"{ideal_costs['Итого']:.2f}")
+    st.metric("Ваши реальные расходы, BYN", f"{user_real['Итого']:.2f}")
+    st.metric("Средний сосед, BYN", f"{neighbor_costs['Итого']:.2f}")
+
+# ------------------------
+# Таблица детализации
+# ------------------------
+detail_df = pd.DataFrame({
+    "Категория": CATEGORIES,
+    "Идеальный расчёт (BYN)": [round(ideal_costs[c],2) for c in CATEGORIES],
+    "Ваши реальные расходы (BYN)": [round(user_real[c],2) for c in CATEGORIES],
+    "Средний сосед (BYN)": [round(neighbor_costs[c],2) for c in CATEGORIES]
+})
+st.dataframe(detail_df, height=260)
+
+# ------------------------
+# График
+# ------------------------
+plot_df = pd.DataFrame({
+    "Категория": CATEGORIES * 3,
+    "Тип": ["Идеальный расчёт"]*len(CATEGORIES) + ["Ваши реальные расходы"]*len(CATEGORIES) + ["Средний сосед"]*len(CATEGORIES),
+    "BYN": [ideal_costs[c] for c in CATEGORIES] + [user_real[c] for c in CATEGORIES] + [neighbor_costs[c] for c in CATEGORIES]
+})
+fig = px.bar(plot_df, x="Категория", y="BYN", color="Тип", barmode="group",
+             color_discrete_map={"Идеальный расчёт":"#636EFA","Ваши реальные расходы":"#00CC96","Средний сосед":"#EF553B"},
+             text="BYN")
+fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+fig.update_layout(yaxis_title="BYN / месяц", legend_title_text="Показатель", uniformtext_minsize=8)
+st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------
+# Рекомендации
+# ------------------------
+st.header("💡 Рекомендации")
+for cat in ["Электроэнергия","Вода","Отопление","Канализация"]:
+    if user_real[cat] > ideal_costs[cat]:
+        st.write(f"- Перерасход по {cat}: проверьте приборы и привычки, возможна экономия.")
+    else:
+        st.write(f"- {cat}: расход в пределах или ниже нормативного уровня.")
