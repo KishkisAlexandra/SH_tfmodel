@@ -13,7 +13,9 @@ DEFAULT_TARIFFS = {
     "water_BYN_per_m3": 1.7858,
     "sewage_BYN_per_m3": 0.9586,
     "heating_BYN_per_Gcal": 135.0,
-    "fixed_fees_BYN": 5.0
+    "maintenance_BYN_per_m2": 0.5,
+    "waste_BYN_per_person": 2.0,
+    "elevator_BYN_per_person": 1.0
 }
 
 DEFAULT_COEFFS = {
@@ -57,7 +59,7 @@ def calculate_volumes(area_m2, occupants, behavior_factor=1.0, coeffs=DEFAULT_CO
         "Отопление": round(heat_monthly,3)
     }
 
-def calculate_costs_from_volumes(volumes, tariffs, subsidy=False, subsidy_rate=0.2):
+def calculate_costs_from_volumes(volumes, tariffs, area_m2, occupants, has_elevator=False, subsidy=False, subsidy_rate=0.2):
     t = tariffs.copy()
     if subsidy:
         t["heating_BYN_per_Gcal"] *= subsidy_rate
@@ -65,23 +67,29 @@ def calculate_costs_from_volumes(volumes, tariffs, subsidy=False, subsidy_rate=0
     water_cost = volumes["Вода"] * t["water_BYN_per_m3"]
     sewage_cost = volumes["Канализация"] * t["sewage_BYN_per_m3"]
     heat_cost = volumes["Отопление"] * t["heating_BYN_per_Gcal"]
-    fixed = t.get("fixed_fees_BYN", 0.0)
+
+    # Фиксированные платежи
+    maintenance_cost = area_m2 * t["maintenance_BYN_per_m2"]
+    waste_cost = occupants * t["waste_BYN_per_person"]
+    elevator_cost = occupants * t["elevator_BYN_per_person"] if has_elevator else 0.0
+    fixed_total = maintenance_cost + waste_cost + elevator_cost
+
     costs = {
         "Электроэнергия": round(elec_cost,2),
         "Вода": round(water_cost,2),
         "Канализация": round(sewage_cost,2),
         "Отопление": round(heat_cost,2),
-        "Фикс. платежи": round(fixed,2)
+        "Фикс. платежи": round(fixed_total,2)
     }
     costs["Итого"] = round(sum(costs.values()),2)
     return costs
 
-def apply_neighbor_adjustment(volumes, tariffs, house_category, behavior_factor):
+def apply_neighbor_adjustment(volumes, tariffs, house_category, behavior_factor, area_m2, occupants, has_elevator):
     vol_adj = volumes.copy()
     coefs = HOUSE_COEFS.get(house_category, {"heating":1.0,"electricity":1.0})
     vol_adj["Электроэнергия"] = vol_adj["Электроэнергия"] * behavior_factor * coefs["electricity"]
     vol_adj["Отопление"] = vol_adj["Отопление"] * coefs["heating"]
-    neighbor_costs = calculate_costs_from_volumes(vol_adj, tariffs, subsidy=False)
+    neighbor_costs = calculate_costs_from_volumes(vol_adj, tariffs, area_m2, occupants, has_elevator, subsidy=False)
     neighbor_costs = {k: round(v * REALISM_UPLIFT, 2) for k, v in neighbor_costs.items()}
     return neighbor_costs
 
@@ -102,6 +110,7 @@ behavior_factor_neighbor = {"Экономный":0.85,"Средний":1.0,"Ра
 house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_COEFS.keys()), index=1)
 
 st.sidebar.markdown("---")
+has_elevator = st.sidebar.checkbox("Есть лифт в доме?", value=True)
 use_subsidy = st.sidebar.checkbox("Использовать льготный тариф")
 subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05) if use_subsidy else 1.0
 
@@ -110,23 +119,27 @@ with st.sidebar.expander("Расширенные настройки тарифа
     t_water = st.number_input("Вода BYN/m³", value=DEFAULT_TARIFFS["water_BYN_per_m3"], format="%.6f")
     t_sewage = st.number_input("Канализация BYN/m³", value=DEFAULT_TARIFFS["sewage_BYN_per_m3"], format="%.6f")
     t_heating = st.number_input("Отопление BYN/Gcal", value=DEFAULT_TARIFFS["heating_BYN_per_Gcal"], format="%.2f")
-    t_fixed = st.number_input("Фикс. платежи BYN/мес", value=DEFAULT_TARIFFS["fixed_fees_BYN"], format="%.2f")
+    t_maintenance = st.number_input("Обслуживание BYN/м²", value=DEFAULT_TARIFFS["maintenance_BYN_per_m2"], format="%.2f")
+    t_waste = st.number_input("Вывоз мусора BYN/чел", value=DEFAULT_TARIFFS["waste_BYN_per_person"], format="%.2f")
+    t_elevator = st.number_input("Лифт BYN/чел", value=DEFAULT_TARIFFS["elevator_BYN_per_person"], format="%.2f")
 
 tariffs = {
     "electricity_BYN_per_kWh": t_elec,
     "water_BYN_per_m3": t_water,
     "sewage_BYN_per_m3": t_sewage,
     "heating_BYN_per_Gcal": t_heating,
-    "fixed_fees_BYN": t_fixed
+    "maintenance_BYN_per_m2": t_maintenance,
+    "waste_BYN_per_person": t_waste,
+    "elevator_BYN_per_person": t_elevator
 }
 
 # ------------------------
 # Расчёты
 ideal_vol = calculate_volumes(area_m2, occupants, behavior_factor=1.0, coeffs=DEFAULT_COEFFS, month=month)
-ideal_costs = calculate_costs_from_volumes(ideal_vol, tariffs, subsidy=use_subsidy, subsidy_rate=subsidy_rate)
+ideal_costs = calculate_costs_from_volumes(ideal_vol, tariffs, area_m2, occupants, has_elevator, subsidy=use_subsidy, subsidy_rate=subsidy_rate)
 
 neighbor_vol = calculate_volumes(area_m2, occupants, behavior_factor=1.0, coeffs=DEFAULT_COEFFS, month=month)
-neighbor_costs = apply_neighbor_adjustment(neighbor_vol, tariffs, house_category, behavior_factor_neighbor)
+neighbor_costs = apply_neighbor_adjustment(neighbor_vol, tariffs, house_category, behavior_factor_neighbor, area_m2, occupants, has_elevator)
 
 # ------------------------
 # Визуализация
@@ -134,35 +147,4 @@ st.header("🏠 Сравнение расходов")
 col1, col2 = st.columns([2,1])
 with col1:
     st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']:.2f}")
-    st.metric("Средний сосед, BYN", f"{neighbor_costs['Итого']:.2f}")
-
-st.markdown("---")
-st.header("📊 Введите ваши реальные расходы за месяц (BYN)")
-with st.expander("Показать поля для ручного ввода"):
-    user_real = {c: st.number_input(f"{c} BYN", min_value=0.0, value=0.0, step=0.1) for c in CATEGORIES}
-user_real["Итого"] = round(sum(user_real[c] for c in CATEGORIES),2)
-
-with col2:
-    detail_df = pd.DataFrame({
-        "Категория": CATEGORIES,
-        "Идеальный расчёт (BYN)": [ideal_costs[c] for c in CATEGORIES],
-        "Ваши реальные данные (BYN)": [user_real[c] for c in CATEGORIES],
-        "Средний сосед (BYN)": [neighbor_costs[c] for c in CATEGORIES]
-    })
-    st.dataframe(detail_df, height=260)
-
-st.markdown("---")
-plot_df = pd.DataFrame({
-    "Категория": CATEGORIES * 3,
-    "Тип": (["Идеальный расчёт"]*len(CATEGORIES)) + (["Ваши реальные данные"]*len(CATEGORIES)) + (["Средний сосед"]*len(CATEGORIES)),
-    "BYN": [ideal_costs[c] for c in CATEGORIES] + [user_real[c] for c in CATEGORIES] + [neighbor_costs[c] for c in CATEGORIES]
-})
-
-fig = px.bar(plot_df, x="Категория", y="BYN", color="Тип", barmode="group",
-             color_discrete_map={"Идеальный расчёт":"#636EFA",
-                                 "Ваши реальные данные":"#00CC96",
-                                 "Средний сосед":"#EF553B"},
-             text="BYN")
-fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-fig.update_layout(yaxis_title="BYN / месяц", legend_title_text="Показатель", uniformtext_minsize=8)
-st.plotly_chart(fig, use_container_width=True)
+    st.metric("Средний сосед, BYN", f"{neighbor_cost
