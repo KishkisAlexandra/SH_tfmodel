@@ -6,17 +6,17 @@ import plotly.express as px
 st.set_page_config(page_title="Utility Benchmark — дашборд", page_icon="🏠", layout="wide")
 
 # ------------------------
-# Константы
+# Константы и тарифы
 # ------------------------
 SCENARIOS = {"Экономный": 0.85, "Средний": 1.0, "Расточительный": 1.25}
 
 DEFAULT_COEFFS = {
-    "elec_base_kWh": 60.0,
-    "elec_per_person_kWh": 75.0,
-    "elec_per_m2_kWh": 0.5,
-    "water_per_person_m3": 4.5,
-    "hot_water_fraction": 0.6,
-    "heating_Gcal_per_m2_season_mid": 0.15,
+    "elec_base_kWh": 60.0,          
+    "elec_per_person_kWh": 75.0,    
+    "elec_per_m2_kWh": 0.5,         
+    "water_per_person_m3": 4.5,     
+    "hot_water_fraction": 0.6,      
+    "heating_Gcal_per_m2_season_mid": 0.15, 
     "heating_season_months": 7.0
 }
 
@@ -25,30 +25,19 @@ HOUSE_COEFS = {
     "Средний": {"heating": 1.05, "electricity": 1.05},
     "Старый": {"heating": 1.1, "electricity": 1.05},
 }
-
 REALISM_UPLIFT = 1.07
 CATEGORIES = ["Электроэнергия", "Вода", "Канализация", "Отопление", "Фикс. платежи"]
-HEATING_MONTHS = [1,2,3,4,10,11,12]
 
-# ------------------------
-# Тарифы
-# ------------------------
-SUBSIDIZED_TARIFFS = {
-    "electricity_BYN_per_kWh": 0.2412,
-    "heating_BYN_per_Gcal": 24.7187
-}
+HEATING_MONTHS = [1,2,3,4,10,11,12]  # месяцы, в которых считается отопление
 
-FULL_TARIFFS = {
-    "electricity_BYN_per_kWh": 0.2969,
-    "heating_BYN_per_Gcal": 134.94
-}
-
-# Остальные тарифы (вода, канализация, фикс.платежи)
-DEFAULT_TARIFFS = {
-    "water_BYN_per_m3": 1.7858,
-    "sewage_BYN_per_m3": 0.9586,
-    "fixed_fees_BYN": 5.0
-}
+# Тарифы для физических лиц
+ELECTRICITY_FULL = 0.2969
+ELECTRICITY_SUBSIDY = 0.2412
+HEATING_FULL = 134.94
+HEATING_SUBSIDY = 24.7187
+WATER_TARIFF = 1.7858
+SEWAGE_TARIFF = 0.9586
+FIXED_FEES = 5.0
 
 # ------------------------
 # Функции расчёта
@@ -123,23 +112,18 @@ adults = st.sidebar.number_input("Взрослые", 0,10,2)
 children = st.sidebar.number_input("Дети", 0,10,2)
 occupants = adults + children
 
+# Средний сосед
 scenario = st.sidebar.selectbox("Сценарий поведения", list(SCENARIOS.keys()), index=1)
 behavior_factor = SCENARIOS[scenario]
 house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_COEFS.keys()), index=1)
 
-# ------------------------
-# Выбор тарифов
-# ------------------------
+# Льгота пользователя
 st.sidebar.markdown("---")
-use_subsidy = st.sidebar.checkbox("Использовать льготный тариф для физических лиц", value=True)
-
-tariffs = DEFAULT_TARIFFS.copy()
+use_subsidy = st.sidebar.checkbox("Использовать льготный тариф (дополнительно к субсидированному)")
 if use_subsidy:
-    tariffs["electricity_BYN_per_kWh"] = SUBSIDIZED_TARIFFS["electricity_BYN_per_kWh"]
-    tariffs["heating_BYN_per_Gcal"] = SUBSIDIZED_TARIFFS["heating_BYN_per_Gcal"]
+    subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05)
 else:
-    tariffs["electricity_BYN_per_kWh"] = FULL_TARIFFS["electricity_BYN_per_kWh"]
-    tariffs["heating_BYN_per_Gcal"] = FULL_TARIFFS["heating_BYN_per_Gcal"]
+    subsidy_rate = 1.0
 
 # ------------------------
 # Ввод реальных расходов
@@ -156,24 +140,47 @@ with st.expander("Показать поля для ручного ввода"):
 user_real["Итого"] = round(sum(user_real[k] for k in CATEGORIES), 2)
 
 # ------------------------
-# Расчёт
+# Расчёт идеального и среднего соседа
 # ------------------------
 ideal_vol = calculate_volumes(area_m2, occupants, 1.0, month=month)
-ideal_costs = calculate_costs_from_volumes(ideal_vol, FULL_TARIFFS, area_m2, occupants)
+ideal_costs = calculate_costs_from_volumes(ideal_vol, {
+    "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY,
+    "water_BYN_per_m3": WATER_TARIFF,
+    "sewage_BYN_per_m3": SEWAGE_TARIFF,
+    "heating_BYN_per_Gcal": HEATING_SUBSIDY,
+    "fixed_fees_BYN": FIXED_FEES
+}, area_m2, occupants)
 
+# Тариф для среднего соседа с поведением + льгота
 neighbor_vol = calculate_volumes(area_m2, occupants, behavior_factor, month=month)
-neighbor_costs = apply_neighbor_adjustment(neighbor_vol, tariffs, house_category, area_m2, occupants)
+neighbor_tariffs = {
+    "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY * subsidy_rate,
+    "water_BYN_per_m3": WATER_TARIFF,
+    "sewage_BYN_per_m3": SEWAGE_TARIFF,
+    "heating_BYN_per_Gcal": HEATING_SUBSIDY * subsidy_rate,
+    "fixed_fees_BYN": FIXED_FEES
+}
+neighbor_costs = apply_neighbor_adjustment(neighbor_vol, neighbor_tariffs, house_category, area_m2, occupants)
 
 # ------------------------
-# Сравнение расходов
+# Визуализация расходов
 # ------------------------
 st.header("🏠 Сравнение расходов")
 col1, col2 = st.columns([2, 1])
-
 with col1:
     st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']:.2f}")
     st.metric("Ваши реальные расходы, BYN", f"{user_real['Итого']:.2f}")
     st.metric("Средний сосед, BYN", f"{neighbor_costs['Итого']:.2f}")
+
+    ideal_total = ideal_costs["Итого"]
+    neighbor_total = neighbor_costs["Итого"]
+    real_total = user_real["Итого"]
+
+    diff_real = round((real_total/ideal_total-1)*100,1) if ideal_total>0 else 0.0
+    diff_neighbor = round((real_total/neighbor_total-1)*100,1) if neighbor_total>0 else 0.0
+
+    st.info(f"Ваши реальные расходы на {diff_real}% {'выше' if diff_real>0 else 'ниже'} нормативного расчёта.")
+    st.info(f"Ваши реальные расходы на {diff_neighbor}% {'выше' if diff_neighbor>0 else 'ниже'} среднего соседа.")
 
 with col2:
     detail_df = pd.DataFrame({
@@ -182,17 +189,20 @@ with col2:
         "Ваши реальные данные (BYN)": [user_real[c] for c in CATEGORIES],
         "Средний сосед (BYN)": [neighbor_costs[c] for c in CATEGORIES],
     })
-    st.dataframe(detail_df.style.format("{:.2f}"), height=260)
+    st.dataframe(detail_df.style.format({
+        "Идеальный расчёт (BYN)": "{:.2f}",
+        "Ваши реальные данные (BYN)": "{:.2f}",
+        "Средний сосед (BYN)": "{:.2f}"
+    }), height=260)
 
 # ------------------------
-# График
+# График расходов
 # ------------------------
 plot_df = pd.DataFrame({
     "Категория": CATEGORIES * 3,
     "Тип": (["Идеальный расчёт"] * len(CATEGORIES)) + (["Ваши реальные данные"] * len(CATEGORIES)) + (["Средний сосед"] * len(CATEGORIES)),
     "BYN": [ideal_costs[c] for c in CATEGORIES] + [user_real[c] for c in CATEGORIES] + [neighbor_costs[c] for c in CATEGORIES]
 })
-
 fig = px.bar(plot_df, x="Категория", y="BYN", color="Тип", barmode="group",
              color_discrete_map={"Идеальный расчёт":"#636EFA","Ваши реальные данные":"#00CC96","Средний сосед":"#EF553B"},
              text="BYN")
@@ -201,52 +211,34 @@ fig.update_layout(yaxis_title="BYN / месяц", legend_title_text="Показ�
 st.plotly_chart(fig, use_container_width=True)
 
 # ------------------------
-# Рекомендации с прогресс-барами
+# Рекомендации
 # ------------------------
-st.header("💡 Рекомендации (мини-дашборд)")
-
-# Иконки категорий
-emoji_map = {
-    "Электроэнергия": "💡",
-    "Вода": "🚰",
-    "Отопление": "🔥",
-    "Канализация": "💧"
-}
-
+st.header("💡 Рекомендации")
+emoji_map = {"Электроэнергия":"💡","Вода":"🚰","Отопление":"🔥","Канализация":"💧"}
 tips_map = {
-    "Электроэнергия": "Энергосберегающие приборы",
-    "Вода": "Аэраторы и проверка труб",
-    "Отопление": "Контроль температуры",
-    "Канализация": "Следите за сантехникой"
+    "Электроэнергия":"используйте энергосберегающие лампы и приборы.",
+    "Вода":"установите аэраторы и проверьте трубы на протечки.",
+    "Отопление":"закрывайте окна и проверьте терморегуляторы.",
+    "Канализация":"контролируйте расход воды и исправность сантехники."
 }
+def get_color(diff):
+    if diff > 0: return "#FFCDD2"
+    else: return "#C8E6C9"
 
-def get_bar_color(percent):
-    if percent < 0:
-        return "#81C784"  # зеленый — расход ниже нормы
-    elif percent < 20:
-        return "#FFF176"  # желтый — небольшой перерасход
-    else:
-        return "#E57373"  # красный — большой перерасход
-
-# Динамическая сетка карточек
-cols = st.columns(len(emoji_map))
+cols = st.columns(4)
 for i, cat in enumerate(["Электроэнергия","Вода","Отопление","Канализация"]):
     diff = user_real[cat] - ideal_costs[cat]
-    percent_diff = round(diff / ideal_costs[cat] * 100, 1) if ideal_costs[cat] > 0 else 0.0
-    bar_color = get_bar_color(percent_diff)
-    
+    percent_over = round(diff/ideal_costs[cat]*100,1) if ideal_costs[cat]>0 else 0
+    if diff > 0:
+        msg = f"Перерасход {percent_over}% — {tips_map[cat]}"
+    else:
+        msg = "Расход в норме"
     with cols[i]:
         st.markdown(f"""
-            <div style='padding:10px; border-radius:12px; background-color:#F5F5F5; 
-                        text-align:center; min-width:120px;'>
-                <div style='font-size:2em'>{emoji_map[cat]}</div>
+            <div style='padding:12px; border-radius:10px; background-color:{get_color(diff)};
+                        font-size:0.9em; text-align:center;'>
+                <div style='font-size:1.5em'>{emoji_map[cat]}</div>
                 <strong>{cat}</strong>
-                <div style='margin:6px 0; font-size:0.85em;'>{tips_map[cat]}</div>
-                <div style='height:12px; border-radius:6px; background-color:#E0E0E0;'>
-                    <div style='width:{min(max(percent_diff,0),100)}%; 
-                                background-color:{bar_color}; 
-                                height:12px; border-radius:6px;'></div>
-                </div>
-                <div style='margin-top:4px; font-size:0.8em;'>{percent_diff:+.1f}% от нормы</div>
+                <div style='margin-top:6px'>{msg}</div>
             </div>
         """, unsafe_allow_html=True)
