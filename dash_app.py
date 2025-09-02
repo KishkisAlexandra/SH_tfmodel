@@ -148,11 +148,11 @@ tariffs = {
 st.header("📊 Введите ваши реальные расходы за месяц (BYN)")
 with st.expander("Показать поля для ручного ввода"):
     user_real = {
-        "Электроэнергия": st.number_input("Электроэнергия BYN", min_value=0.0, value=0.0, step=1.0),
-        "Вода": st.number_input("Вода BYN", min_value=0.0, value=0.0, step=0.1),
-        "Канализация": st.number_input("Канализация BYN", min_value=0.0, value=0.0, step=0.1),
-        "Отопление": st.number_input("Отопление BYN", min_value=0.0, value=0.0, step=0.1),
-        "Фикс. платежи": st.number_input("Фикс. платежи BYN", min_value=0.0, value=0.0, step=0.1)
+        "Электроэнергия": st.number_input("Электроэнергия BYN", min_value=0.0, value=0.0, step=1.0, format="%.2f"),
+        "Вода": st.number_input("Вода BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+        "Канализация": st.number_input("Канализация BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+        "Отопление": st.number_input("Отопление BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+        "Фикс. платежи": st.number_input("Фикс. платежи BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f")
     }
 user_real["Итого"] = round(sum(user_real[k] for k in CATEGORIES), 2)
 
