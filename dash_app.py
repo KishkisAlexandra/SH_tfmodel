@@ -192,26 +192,14 @@ with col2:
         "Средний сосед (BYN)": [neighbor_costs[c] for c in CATEGORIES],
     })
 
-    # Варианты палитр для градиента
-    palette_options = {
-        "PuBuGn": "PuBuGn",
-        "YlGnBu": "YlGnBu",
-        "OrRd": "OrRd",
-        "BuPu": "BuPu",
-        "Greens": "Greens"
-    }
-
-    # Можно сделать выбор палитры через selectbox (опционально)
-    selected_palette = st.selectbox("Выберите цветовую палитру для таблицы", list(palette_options.keys()), index=0)
-
-    # Стилизация таблицы
+    # Стилизация таблицы с градиентом BuPu
     styled_df = detail_df.style.format({
         "Идеальный расчёт (BYN)": "{:.2f}",
         "Ваши реальные данные (BYN)": "{:.2f}",
         "Средний сосед (BYN)": "{:.2f}"
     }).background_gradient(
         subset=["Идеальный расчёт (BYN)", "Ваши реальные данные (BYN)", "Средний сосед (BYN)"],
-        cmap=palette_options[selected_palette]  # выбранная палитра
+        cmap="BuPu"  # палитра BuPu
     ).set_properties(**{
         'text-align': 'center',
         'font-size': '14px'
