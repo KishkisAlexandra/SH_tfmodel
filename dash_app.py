@@ -190,11 +190,24 @@ with col2:
         "Ваши реальные данные (BYN)": [user_real[c] for c in CATEGORIES],
         "Средний сосед (BYN)": [neighbor_costs[c] for c in CATEGORIES],
     })
-    st.dataframe(detail_df.style.format({
+
+    # Стилизация как дашборд: градиенты по величине расходов
+    styled_df = detail_df.style.format({
         "Идеальный расчёт (BYN)": "{:.2f}",
         "Ваши реальные данные (BYN)": "{:.2f}",
         "Средний сосед (BYN)": "{:.2f}"
-    }), height=260)
+    }).background_gradient(
+        subset=["Идеальный расчёт (BYN)", "Ваши реальные данные (BYN)", "Средний сосед (BYN)"],
+        cmap="YlOrRd"
+    ).set_properties(**{
+        'text-align': 'center',
+        'font-size': '14px'
+    }).set_table_styles([
+        {'selector': 'th', 'props': [('text-align', 'center'), ('font-size', '15px'), ('background-color', '#f0f0f0')]}
+    ])
+
+    st.dataframe(styled_df, height=280)
+
 
 # ------------------------
 # График расходов
