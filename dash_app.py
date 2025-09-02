@@ -183,7 +183,6 @@ st.plotly_chart(fig, use_container_width=True)
 # ------------------------
 st.header("💡 Рекомендации по оптимизации расходов")
 
-# Эмодзи для категорий
 emoji_map = {
     "Электроэнергия": "💡",
     "Вода": "🚰",
@@ -191,7 +190,6 @@ emoji_map = {
     "Канализация": "💧"
 }
 
-# Возможные советы по категориям
 tips_map = {
     "Электроэнергия": [
         "Проверьте энергопотребление бытовых приборов.",
@@ -215,7 +213,6 @@ tips_map = {
     ]
 }
 
-# Формируем рекомендации динамически
 for cat in ["Электроэнергия","Вода","Отопление","Канализация"]:
     diff_from_norm = user_real[cat] - ideal_costs[cat]
     diff_from_neighbor = user_real[cat] - neighbor_costs[cat]
@@ -230,15 +227,15 @@ for cat in ["Электроэнергия","Вода","Отопление","Ка
     else:
         extra_tip = f"Ваш расход ниже среднего соседа — вы опережаете соседей в экономии."
 
-    # Случайная дополнительная рекомендация
     import random
     random_tip = random.choice(tips_map[cat][2:])
 
     st.markdown(f"""
-        <div style='border-left: 4px solid #1F77B4; padding: 12px; margin-bottom:8px; background-color:#F0F8FF; border-radius:5px'>
+        <div style='border-left: 4px solid #1F77B4; padding: 10px; margin-bottom:8px; 
+                    background-color:#E8F0F8; border-radius:5px; font-size:0.9em; color:#333'>
             <h4 style='margin:0'>{emoji_map[cat]} {cat}</h4>
             <p style='margin:4px 0 0 0'>{main_tip}</p>
             <p style='margin:2px 0 0 0; color:#555'>{extra_tip}</p>
-            <p style='margin:2px 0 0 0; font-style:italic; color:#888'>{random_tip}</p>
+            <p style='margin:2px 0 0 0; font-style:italic; color:#666'>{random_tip}</p>
         </div>
     """, unsafe_allow_html=True)
