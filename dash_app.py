@@ -39,7 +39,7 @@ HEATING_MONTHS = [1,2,3,4,10,11,12]
 # ------------------------
 # Функции расчёта
 # ------------------------
-def calculate_volumes(area_m2, occupants, behavior_factor, coeffs=DEFAULT_COEFFS, month=1):
+def calculate_volumes(area_m2, occupants, behavior_factor=1.0, coeffs=DEFAULT_COEFFS, month=1):
     elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"]*occupants +
             coeffs["elec_per_m2_kWh"]*area_m2) * behavior_factor
     water = coeffs["water_per_person_m3"]*occupants*behavior_factor
@@ -61,13 +61,11 @@ def calculate_costs_from_volumes(volumes, tariffs, subsidy=False, subsidy_rate=0
     t = tariffs.copy()
     if subsidy:
         t["heating_BYN_per_Gcal"] *= subsidy_rate
-
     elec_cost = volumes["Электроэнергия"] * t["electricity_BYN_per_kWh"]
     water_cost = volumes["Вода"] * t["water_BYN_per_m3"]
     sewage_cost = volumes["Канализация"] * t["sewage_BYN_per_m3"]
     heat_cost = volumes["Отопление"] * t["heating_BYN_per_Gcal"]
     fixed = t.get("fixed_fees_BYN", 0.0)
-
     costs = {
         "Электроэнергия": round(elec_cost,2),
         "Вода": round(water_cost,2),
@@ -98,13 +96,11 @@ adults = st.sidebar.number_input("Взрослые", 0,10,2)
 children = st.sidebar.number_input("Дети", 0,10,1)
 occupants = adults + children
 
-# Параметры только для среднего соседа
 st.sidebar.markdown("---")
 scenario = st.sidebar.selectbox("Сценарий поведения", ["Экономный","Средний","Расточительный"], index=1)
 behavior_factor_neighbor = {"Экономный":0.85,"Средний":1.0,"Расточительный":1.25}[scenario]
 house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_COEFS.keys()), index=1)
 
-# Льготы и тарифы
 st.sidebar.markdown("---")
 use_subsidy = st.sidebar.checkbox("Использовать льготный тариф")
 subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05) if use_subsidy else 1.0
@@ -125,11 +121,10 @@ tariffs = {
 }
 
 # ------------------------
-# Идеальный расчёт (по нормативам) — НЕ зависит от соседа
+# Расчёты
 ideal_vol = calculate_volumes(area_m2, occupants, behavior_factor=1.0, coeffs=DEFAULT_COEFFS, month=month)
 ideal_costs = calculate_costs_from_volumes(ideal_vol, tariffs, subsidy=use_subsidy, subsidy_rate=subsidy_rate)
 
-# Средний сосед — зависит от сценария поведения и категории дома
 neighbor_vol = calculate_volumes(area_m2, occupants, behavior_factor=1.0, coeffs=DEFAULT_COEFFS, month=month)
 neighbor_costs = apply_neighbor_adjustment(neighbor_vol, tariffs, house_category, behavior_factor_neighbor)
 
@@ -141,7 +136,6 @@ with col1:
     st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']:.2f}")
     st.metric("Средний сосед, BYN", f"{neighbor_costs['Итого']:.2f}")
 
-# Реальные расходы — по умолчанию нули
 st.markdown("---")
 st.header("📊 Введите ваши реальные расходы за месяц (BYN)")
 with st.expander("Показать поля для ручного ввода"):
@@ -164,4 +158,11 @@ plot_df = pd.DataFrame({
     "BYN": [ideal_costs[c] for c in CATEGORIES] + [user_real[c] for c in CATEGORIES] + [neighbor_costs[c] for c in CATEGORIES]
 })
 
-fig = px.bar(plot_df,
+fig = px.bar(plot_df, x="Категория", y="BYN", color="Тип", barmode="group",
+             color_discrete_map={"Идеальный расчёт":"#636EFA",
+                                 "Ваши реальные данные":"#00CC96",
+                                 "Средний сосед":"#EF553B"},
+             text="BYN")
+fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+fig.update_layout(yaxis_title="BYN / месяц", legend_title_text="Показатель", uniformtext_minsize=8)
+st.plotly_chart(fig, use_container_width=True)
