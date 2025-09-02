@@ -167,13 +167,14 @@ neighbor_costs = apply_neighbor_adjustment(neighbor_vol, neighbor_tariffs, house
 # ------------------------
 st.header("🏠 Сравнение расходов")
 col1, col2 = st.columns([2, 1])
+
 with col1:
     st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']:.2f}")
     st.metric("Ваши реальные расходы, BYN", f"{user_real['Итого']:.2f}")
     st.metric("Средний сосед, BYN", f"{neighbor_costs['Итого']:.2f}")
 
-    ideal_total = ideal_costs["Итого"]
-    neighbor_total = neighbor_costs["Итого"]
+    ideal_total = ideal_costs.get("Итого", 0.0) or 0.0
+    neighbor_total = neighbor_costs.get("Итого", 0.0) or 0.0
     real_total = user_real["Итого"]
 
     diff_real = round((real_total/ideal_total-1)*100,1) if ideal_total>0 else 0.0
