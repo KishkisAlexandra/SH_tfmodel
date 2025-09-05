@@ -1,4 +1,4 @@
-# Калькулятор-бенчмарк коммунальных услуг (Беларусь)
+# Анализ коммунальных платежей
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.25%2B-red.svg)
