@@ -69,16 +69,16 @@
 git clone [ССЫЛКА НА GIT-РЕПОЗИТОРИЙ]
 cd [ПАПКА ПРОЕКТА]
 
-## Создайте и активируйте виртуальное окружение
+2. Создайте и активируйте виртуальное окружение
 python -m venv venv
 # Для Windows:
 venv\Scripts\activate
 # Для macOS/Linux:
 source venv/bin/activate
 
-## Установите зависимости
+3. Установите зависимости
 pip install -r requirements.txt
 
-## Запустите приложение
+4. Запустите приложение
 streamlit run app.py
 
