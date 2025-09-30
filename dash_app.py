@@ -217,8 +217,8 @@ with col1:
     st.metric("Ваши реальные расходы", f"{user_real['Итого']:.2f}")
     st.metric("Средний сосед", f"{neighbor_costs['Итого']:.2f}")
 
-    diff_real = round((user_real["Итого"]/ideal_costs["Итого"]-1)*100,1) if ideal_costs["Итого"]>0 else 0.0
-    diff_neighbor = round((user_real["Итого"]/neighbor_costs["Итого"]-1)*100,1) if neighbor_costs["Итого"]>0 else 0.0
+    diff_real = round((user_real["Итого"]/ideal_costs.get("Итого",1)-1)*100,1)
+    diff_neighbor = round((user_real["Итого"]/neighbor_costs.get("Итого",1)-1)*100,1)
 
     st.info(f"Ваши реальные расходы на {diff_real}% {'выше' if diff_real>0 else 'ниже'} нормативного расчёта.")
     st.info(f"Ваши реальные расходы на {diff_neighbor}% {'выше' if diff_neighbor>0 else 'ниже'} среднего соседа.")
@@ -226,11 +226,16 @@ with col1:
 with col2:
     detail_df = pd.DataFrame({
         "Категория": CATEGORIES,
-        "Идеальный расчёт": [ideal_costs.get(c,0) for c in CATEGORIES],
-        "Ваши реальные данные": [user_real.get(c,0) for c in CATEGORIES],
-        "Средний сосед": [neighbor_costs.get(c,0) for c in CATEGORIES],
+        "Идеальный расчёт": [ideal_costs.get(c,0.0) for c in CATEGORIES],
+        "Ваши реальные данные": [user_real.get(c,0.0) for c in CATEGORIES],
+        "Средний сосед": [neighbor_costs.get(c,0.0) for c in CATEGORIES],
     })
-    styled_df = detail_df.style.format("{:.2f}").background_gradient(cmap="BuPu").set_properties(**{'text-align':'center','font-size':'14px'})
+
+    # Стилизация с безопасным форматированием
+    styled_df = detail_df.style.format({col: "{:.2f}" for col in detail_df.columns if col!="Категория"}).background_gradient(
+        subset=["Идеальный расчёт","Ваши реальные данные","Средний сосед"], cmap="BuPu"
+    ).set_properties(**{'text-align':'center','font-size':'14px'})
+
     st.dataframe(styled_df, height=280)
 
 plot_df = pd.DataFrame({
