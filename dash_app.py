@@ -194,7 +194,10 @@ if city=="Минск":
     }, area_m2, occupants)
     
     neighbor_vol = calculate_volumes(area_m2, occupants, behavior_factor, month=month)
-    neighbor_tariffs = {
-        "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY * subsidy_rate,
-        "water_BYN_per_m3": WATER_TARIFF,
-        "sewage_BYN_per_m3
+ neighbor_tariffs = {
+    "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY * subsidy_rate,
+    "water_BYN_per_m3": WATER_TARIFF,
+    "sewage_BYN_per_m3": SEWAGE_TARIFF,
+    "heating_BYN_per_Gcal": HEATING_SUBSIDY * subsidy_rate,
+    "fixed_fees_BYN": FIXED_FEES
+}
