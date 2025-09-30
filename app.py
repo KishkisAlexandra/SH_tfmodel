@@ -57,14 +57,22 @@ subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.
 # ------------------------
 # Функции расчета
 # ------------------------
-def calculate_volumes(area_m2, occupants, behavior_factor, coeffs=coeffs, month=1):
+def calculate_volumes(area_m2, occupants, behavior_factor, coeffs, month=1):
     elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"]*occupants +
             coeffs["elec_per_m2_kWh"]*area_m2) * behavior_factor
-    water = coeffs["water_per_person_m3"] * occupants * behavior_factor
+    water = coeffs["water_per_person_m3"]*occupants*behavior_factor
     hot_water = water * coeffs["hot_water_fraction"]
     sewage = water
-    HEATING_MONTHS = [1,2,3,4,10,11,12]
-    heat_monthly = (coeffs["heating_Gcal_per_m2_season_mid"] * area_m2 / coeffs["heating_season_months"]) if month in HEATING_MONTHS else 0.0
+
+    HEATING_MONTHS = [1, 2, 3, 4, 10, 11, 12]
+
+    # безопасное деление: если отопления нет, heat_monthly = 0
+    if month in HEATING_MONTHS and coeffs.get("heating_season_months",0) > 0:
+        heat_monthly = (coeffs["heating_Gcal_per_m2_season_mid"] * area_m2 /
+                        coeffs["heating_season_months"])
+    else:
+        heat_monthly = 0.0
+
     return {
         "Электроэнергия": round(elec, 1),
         "Вода": round(water, 2),
@@ -72,6 +80,7 @@ def calculate_volumes(area_m2, occupants, behavior_factor, coeffs=coeffs, month=
         "Канализация": round(sewage, 2),
         "Отопление": round(heat_monthly, 3)
     }
+
 
 def calculate_costs_from_volumes(volumes, tariffs, subsidy_rate=subsidy_rate):
     elec_cost = volumes["Электроэнергия"] * tariffs["electricity_BYN_per_kWh"] * subsidy_rate
