@@ -111,16 +111,17 @@ def apply_neighbor_adjustment(volumes, tariffs, house_category, area_m2, occupan
 # Функции расчёта Лимасол
 # ------------------------
 def calculate_water_limassol(consumption_m3):
-    cost = 22  # базовый платеж
-    remaining = consumption_m3
+    base = 22
     brackets = [(1,40,0.9),(41,80,1.43),(81,120,2.45),(121,float('inf'),5.0)]
+    remaining = consumption_m3
+    cost = base
     for lower, upper, rate in brackets:
         if remaining <= 0:
             break
         apply_m3 = min(upper-lower+1, remaining)
         cost += apply_m3 * rate
         remaining -= apply_m3
-    return round(cost*(1+VAT_WATER),2)
+    return round(cost * (1 + 0.05), 2)  # НДС 5%
 
 def calculate_fixed_limassol():
     return {
@@ -190,9 +191,15 @@ if city == "Минск":
     neighbor_costs = apply_neighbor_adjustment(neighbor_vol, neighbor_tariffs, house_category, area_m2, occupants)
 
 elif city == "Лимасол":
-    elec_input = st.sidebar.number_input("Электроэнергия кВт·ч", 0.0, value=1048.0)
-    water_input = st.sidebar.number_input("Вода м³", 0.0, value=25.2)
-    volumes_lim = {"Электроэнергия": elec_input, "Вода": water_input}
+    # Нормативы потребления
+    elec_per_m2 = 3.0
+    elec_per_person = 150.0
+    water_per_person = 4.0
+
+    elec_consumption = elec_per_m2 * area_m2 + elec_per_person * occupants
+    water_consumption = water_per_person * occupants
+    volumes_lim = {"Электроэнергия": elec_consumption, "Вода": water_consumption}
+
     ideal_costs = calculate_costs_limassol(volumes_lim)
     neighbor_costs = calculate_costs_limassol(volumes_lim)
 
