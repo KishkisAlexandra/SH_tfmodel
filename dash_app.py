@@ -67,7 +67,6 @@ def calculate_costs_minsk(volumes, tariffs, area_m2, occupants, floor=1, has_ele
     sewage_cost = volumes["Канализация"] * tariffs["sewage_BYN_per_m3"]
     heat_cost = volumes["Отопление"] * tariffs["heating_BYN_per_Gcal_subsidy"]
 
-    # Фиксированные платежи (для Минска)
     maintenance_cost = area_m2 * 0.0388
     lighting_cost = area_m2 * 0.0249
     waste_cost = 0.2092 * occupants
@@ -113,12 +112,10 @@ LIMASSOL_TARIFFS = {
     "service_max": 125,
 }
 
-# Функция для расчета стоимости воды в Лимасоле
 def calculate_water_cost_limassol(volume_m3):
     tariffs = LIMASSOL_TARIFFS
     cost = tariffs["water_base"]
     remaining_volume = volume_m3
-    
     tier_limits = sorted(tariffs["water_tiers"].keys())
     last_limit = 0
     
@@ -133,23 +130,14 @@ def calculate_water_cost_limassol(volume_m3):
             
     return cost * (1 + tariffs["vat_water"])
 
-# Основная функция расчета для Лимасола
 def calculate_costs_limassol(volumes, month):
     tariffs = LIMASSOL_TARIFFS
-    
-    # Электричество
-    elec_tariff = tariffs["electricity_history"].get(month, 0.2661) # Используем тариф для месяца
+    elec_tariff = tariffs["electricity_history"].get(month, 0.2661)
     elec_cost = volumes["Электроэнергия"] * elec_tariff * (1 + tariffs["vat_electricity"])
-    
-    # Вода
     water_cost = calculate_water_cost_limassol(volumes["Вода"])
-    
-    # Фиксированные платежи
     internet_cost = tariffs["internet"] * (1 + tariffs["vat_services"])
     phone_cost = tariffs["phone"] * (1 + tariffs["vat_services"])
     iptv_cost = tariffs["iptv"] * (1 + tariffs["vat_services"])
-    
-    # Обслуживание (используем среднее значение для примера)
     service_cost = ((tariffs["service_min"] + tariffs["service_max"]) / 2) * (1 + tariffs["vat_services"])
     
     costs = {
@@ -164,7 +152,6 @@ def calculate_costs_limassol(volumes, month):
     costs["Итого"] = round(sum(costs.values()), 2)
     return costs
 
-
 # ------------------------
 # Sidebar: общие параметры
 # ------------------------
@@ -178,7 +165,6 @@ month = st.sidebar.selectbox("Месяц", list(range(1, 13)), format_func=lambd
 if selected_city == "Минск":
     st.title("🏠 Коммунальные платежи: Минск")
     
-    # --- Параметры для Минска ---
     st.sidebar.header("Параметры семьи (Минск)")
     area_m2 = st.sidebar.number_input("Площадь, м²", 10.0, 500.0, 90.0)
     adults = st.sidebar.number_input("Взрослые", 0, 10, 2)
@@ -188,60 +174,50 @@ if selected_city == "Минск":
     scenario = st.sidebar.selectbox("Сценарий поведения", list(SCENARIOS.keys()), index=1)
     behavior_factor = SCENARIOS[scenario]
     house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_COEFS.keys()), index=1)
-
     st.sidebar.markdown("---")
     use_subsidy = st.sidebar.checkbox("Использовать льготный тариф")
     subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05) if use_subsidy else 1.0
 
-    # --- Ввод реальных расходов (Минск) ---
     st.header("📊 Введите ваши реальные расходы за месяц (BYN)")
     with st.expander("Показать поля для ручного ввода"):
         user_real = {cat: st.number_input(f"{cat} BYN", min_value=0.0, value=0.0, step=1.0, format="%.2f") for cat in MINSK_CATEGORIES}
     user_real["Итого"] = sum(user_real.values())
 
-    # --- Расчёты (Минск) ---
     ideal_vol = calculate_volumes_minsk(area_m2, occupants, 1.0, month=month)
     ideal_costs = calculate_costs_minsk(ideal_vol, MINSK_TARIFFS, area_m2, occupants)
-
     neighbor_vol = calculate_volumes_minsk(area_m2, occupants, behavior_factor, month=month)
-    neighbor_costs_minsk = calculate_costs_minsk(neighbor_vol, MINSK_TARIFFS, area_m2, occupants) # Базовый расчет
-    
-    # Корректировка "среднего соседа"
+    neighbor_costs_minsk = calculate_costs_minsk(neighbor_vol, MINSK_TARIFFS, area_m2, occupants)
     neighbor_costs = {k: v * REALISM_UPLIFT for k, v in neighbor_costs_minsk.items()}
     neighbor_costs["Итого"] = sum(neighbor_costs.values())
 
-    # --- Визуализация (Минск) ---
     st.header("🏠 Сравнение расходов (Минск)")
-    # ... (остальной код для Минска без изменений)
     col1, col2 = st.columns([2, 1])
-
     with col1:
         st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']:.2f}")
         st.metric("Ваши реальные расходы, BYN", f"{user_real['Итого']:.2f}")
         st.metric("Средний сосед, BYN", f"{neighbor_costs['Итого']:.2f}")
-
         ideal_total = ideal_costs.get("Итого", 0.0) or 0.0
         neighbor_total = neighbor_costs.get("Итого", 0.0) or 0.0
         real_total = user_real["Итого"]
-
-        diff_real = round((real_total/ideal_total-1)*100,1) if ideal_total>0 else 0.0
-        diff_neighbor = round((real_total/neighbor_total-1)*100,1) if neighbor_total>0 else 0.0
-
+        diff_real = round((real_total/ideal_total-1)*100,1) if ideal_total > 0 else 0.0
+        diff_neighbor = round((real_total/neighbor_total-1)*100,1) if neighbor_total > 0 else 0.0
         st.info(f"Ваши реальные расходы на {diff_real}% {'выше' if diff_real>0 else 'ниже'} нормативного расчёта.")
         st.info(f"Ваши реальные расходы на {diff_neighbor}% {'выше' if diff_neighbor>0 else 'ниже'} среднего соседа.")
-
     with col2:
-        # Создаем DataFrame с детализацией расходов
         detail_df = pd.DataFrame({
             "Категория": MINSK_CATEGORIES,
             "Идеальный расчёт (BYN)": [ideal_costs[c] for c in MINSK_CATEGORIES],
             "Ваши реальные данные (BYN)": [user_real[c] for c in MINSK_CATEGORIES],
             "Средний сосед (BYN)": [neighbor_costs[c] for c in MINSK_CATEGORIES],
         })
-        styled_df = detail_df.style.format("{:.2f}").background_gradient(cmap="BuPu")
+        
+        # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+        # Указываем формат только для числовых колонок
+        numeric_cols = ["Идеальный расчёт (BYN)", "Ваши реальные данные (BYN)", "Средний сосед (BYN)"]
+        formatter = {col: "{:.2f}" for col in numeric_cols}
+        styled_df = detail_df.style.format(formatter).background_gradient(subset=numeric_cols, cmap="BuPu")
         st.dataframe(styled_df, height=280)
 
-    # График расходов
     plot_df = pd.DataFrame({
         "Категория": MINSK_CATEGORIES * 3,
         "Тип": (["Идеальный расчёт"] * len(MINSK_CATEGORIES)) + (["Ваши реальные данные"] * len(MINSK_CATEGORIES)) + (["Средний сосед"] * len(MINSK_CATEGORIES)),
@@ -251,14 +227,10 @@ if selected_city == "Минск":
     fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
     st.plotly_chart(fig, use_container_width=True)
 
-
 elif selected_city == "Лимасол":
     st.title("🏠 Коммунальные платежи: Лимасол")
     
-    # --- Ввод реальных расходов (Лимасол) ---
-    # Для Лимасола мы не будем рассчитывать "идеального соседа", а просто сравним с введенными данными.
     st.header("📊 Введите ваше фактическое потребление и расходы за месяц")
-    
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Потребление ресурсов")
@@ -266,7 +238,6 @@ elif selected_city == "Лимасол":
             "Электроэнергия": st.number_input("Электроэнергия, кВт·ч", min_value=0.0, value=1048.0, step=10.0),
             "Вода": st.number_input("Вода, м³", min_value=0.0, value=25.2, step=1.0),
         }
-    
     with col2:
         st.subheader("Фактические расходы (€)")
         user_real_costs = {
@@ -276,16 +247,13 @@ elif selected_city == "Лимасол":
             "Интернет": st.number_input("Интернет €", min_value=0.0, value=23.8, step=1.0),
             "Телефон": st.number_input("Телефон €", min_value=0.0, value=23.8, step=1.0),
             "IPTV": st.number_input("IPTV €", min_value=0.0, value=11.9, step=1.0),
-            "Обслуживание": st.number_input("Обслуживание €", min_value=0.0, value=107.1, step=5.0), # (45+125)/2 * 1.19
+            "Обслуживание": st.number_input("Обслуживание €", min_value=0.0, value=107.1, step=5.0),
         }
     user_real_costs["Итого"] = sum(user_real_costs.values())
 
-    # --- Расчёт по тарифам (Лимасол) ---
     calculated_costs = calculate_costs_limassol(user_consumption, month)
 
-    # --- Визуализация (Лимасол) ---
     st.header("🏠 Сравнение расчетных и реальных расходов (€)")
-    
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Расчетная стоимость по тарифам", f"€ {calculated_costs['Итого']:.2f}")
@@ -295,7 +263,6 @@ elif selected_city == "Лимасол":
     diff = user_real_costs['Итого'] - calculated_costs['Итого']
     st.info(f"Разница составляет: € {diff:.2f}")
 
-    # --- Таблица и график (Лимасол) ---
     df_limassol = pd.DataFrame({
         "Категория": LIMASSOL_CATEGORIES,
         "Расчет по тарифам (€)": [calculated_costs[cat] for cat in LIMASSOL_CATEGORIES],
@@ -303,7 +270,11 @@ elif selected_city == "Лимасол":
     })
 
     st.subheader("Детализация расходов")
-    styled_df = df_limassol.style.format("{:.2f}").background_gradient(cmap="Greens")
+    # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+    # Указываем формат только для числовых колонок
+    numeric_cols_limassol = ["Расчет по тарифам (€)", "Ваши реальные данные (€)"]
+    formatter_limassol = {col: "{:.2f}" for col in numeric_cols_limassol}
+    styled_df = df_limassol.style.format(formatter_limassol).background_gradient(subset=numeric_cols_limassol, cmap="Greens")
     st.dataframe(styled_df, use_container_width=True)
 
     plot_df_limassol = pd.DataFrame({
@@ -312,9 +283,7 @@ elif selected_city == "Лимасол":
         "€": [calculated_costs[cat] for cat in LIMASSOL_CATEGORIES] + [user_real_costs[cat] for cat in LIMASSOL_CATEGORIES]
     })
     
-    fig_limassol = px.bar(plot_df_limassol, x="Категория", y="€", color="Тип", barmode="group",
-                          color_discrete_map={"Расчет по тарифам":"#636EFA", "Ваши реальные данные":"#00CC96"},
-                          text="€")
+    fig_limassol = px.bar(plot_df_limassol, x="Категория", y="€", color="Тип", barmode="group", text="€")
     fig_limassol.update_traces(texttemplate='%{text:.2f}', textposition='outside')
     fig_limassol.update_layout(yaxis_title="Сумма, €", legend_title_text="Показатель")
     st.plotly_chart(fig_limassol, use_container_width=True)
