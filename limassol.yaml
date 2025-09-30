@@ -1,8 +1,8 @@
 tariffs:
   electricity_BYN_per_kWh: 0.2661   # EUR / kWh
   water_BYN_per_m3: 1.3248          # EUR / m³
-  sewage_BYN_per_m3: 1.0            # EUR / m³ (условно)
-  heating_BYN_per_Gcal: 0.0         # нет централизованного отопления
+  sewage_BYN_per_m3: 1.0            # EUR / m³
+  heating_BYN_per_Gcal: 0.0         # нет отопления
   fixed_fees_BYN: 0.0
   internet_BYN: 20.0
   phone_BYN: 20.0
@@ -16,7 +16,7 @@ norms:
   water_per_person_m3: 4.5
   hot_water_fraction: 0.6
   heating_Gcal_per_m2_season_mid: 0.0
-  heating_season_months: 0.0
+  heating_season_months: 1.0   # важно: не ноль, чтобы не делить на ноль
 
 house_coeffs:
   Новый:
