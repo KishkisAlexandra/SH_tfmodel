@@ -125,6 +125,7 @@ def apply_neighbor_adjustment(volumes, tariffs, house_category, area_m2, occupan
     return {k: round(v * REALISM_UPLIFT, 2) for k, v in neighbor_costs.items()}
 
 # ------------------------
+# ------------------------
 # Функции расчёта Лимасол (EUR)
 # ------------------------
 if city == "Лимасол":
@@ -136,14 +137,15 @@ if city == "Лимасол":
     VAT_FIXED = 0.19
     SERVICE_MIN = 45
     SERVICE_MAX = 125
-    RENT = 4600  # фиксированная сумма в EUR
+    RENT = 4600  # фиксированная сумма в EUR, только для отображения
 
     def calculate_water_limassol(consumption_m3):
-        cost = 22
+        cost = 22  # базовый платеж
         remaining = consumption_m3
         brackets = [(1,40,0.9),(41,80,1.43),(81,120,2.45),(121,float('inf'),5.0)]
         for lower, upper, rate in brackets:
-            if remaining <= 0: break
+            if remaining <= 0:
+                break
             apply_m3 = min(upper-lower+1, remaining)
             cost += apply_m3 * rate
             remaining -= apply_m3
@@ -170,10 +172,11 @@ if city == "Лимасол":
             "Вода": water_cost,
             **fixed_costs,
             "Обслуживание": service_cost,
-            "Аренда": RENT
+            # "Аренда" исключена из расчёта
         }
         costs["Итого"] = round(sum(costs.values()),2)
         return costs
+
 
 
 # ------------------------
