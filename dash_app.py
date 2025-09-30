@@ -6,17 +6,17 @@ import plotly.express as px
 st.set_page_config(page_title="Utility Benchmark — дашборд", page_icon="🏠", layout="wide")
 
 # ------------------------
-# Константы и тарифы
+# Константы
 # ------------------------
 SCENARIOS = {"Экономный": 0.85, "Средний": 1.0, "Расточительный": 1.25}
 
 DEFAULT_COEFFS = {
-    "elec_base_kWh": 60.0,          
-    "elec_per_person_kWh": 75.0,    
-    "elec_per_m2_kWh": 0.5,         
-    "water_per_person_m3": 4.5,     
-    "hot_water_fraction": 0.6,      
-    "heating_Gcal_per_m2_season_mid": 0.15, 
+    "elec_base_kWh": 60.0,
+    "elec_per_person_kWh": 75.0,
+    "elec_per_m2_kWh": 0.5,
+    "water_per_person_m3": 4.5,
+    "hot_water_fraction": 0.6,
+    "heating_Gcal_per_m2_season_mid": 0.15,
     "heating_season_months": 7.0
 }
 
@@ -26,11 +26,9 @@ HOUSE_COEFS = {
     "Старый": {"heating": 1.1, "electricity": 1.05},
 }
 REALISM_UPLIFT = 1.07
-CATEGORIES = ["Электроэнергия", "Вода", "Канализация", "Отопление", "Фикс. платежи"]
+HEATING_MONTHS = [1,2,3,4,10,11,12]
 
-HEATING_MONTHS = [1,2,3,4,10,11,12]  # месяцы, в которых считается отопление
-
-# Тарифы для физических лиц
+# Минск тарифы
 ELECTRICITY_FULL = 0.2969
 ELECTRICITY_SUBSIDY = 0.2412
 HEATING_FULL = 134.94
@@ -38,6 +36,20 @@ HEATING_SUBSIDY = 24.7187
 WATER_TARIFF = 1.7858
 SEWAGE_TARIFF = 0.9586
 FIXED_FEES = 5.0
+CATEGORIES_MINSK = ["Электроэнергия", "Вода", "Канализация", "Отопление", "Фикс. платежи"]
+
+# Лимассол тарифы и НДС
+ELECTRICITY_HISTORY = {1:0.242,2:0.242,3:0.242,4:0.242,5:0.242,6:0.242,
+                       7:0.242,8:0.242,9:0.242,10:0.2661,11:0.2661,12:0.2661}
+WATER_VOLUME = 25.2
+WATER_BASE = 22
+WATER_TARIFF = 0.9
+WATER_VAT = 1.05
+VAT_ELECTRICITY = 1.19
+VAT_OTHER = 1.19
+SERVICE_MIN = 45
+SERVICE_MAX = 125
+CATEGORIES_LIMASSOL = ["Электроэнергия","Вода","Интернет","Телефон","IPTV","Сервисный сбор","Итого"]
 
 # ------------------------
 # Функции расчёта
@@ -67,12 +79,11 @@ def calculate_costs_from_volumes(volumes, tariffs, area_m2=50, occupants=1, floo
     sewage_cost = volumes["Канализация"] * tariffs["sewage_BYN_per_m3"]
     heat_cost = volumes["Отопление"] * tariffs["heating_BYN_per_Gcal"]
 
-    # Фиксированные платежи
     maintenance_max = 0.0388
     lighting_max = 0.0249
     waste_norm = 0.2092
-    elevator_max = 0.88
     capital_repair_rate = 0.05
+    elevator_max = 0.88
 
     maintenance_cost = area_m2 * maintenance_max
     lighting_cost = area_m2 * lighting_max
@@ -101,10 +112,33 @@ def apply_neighbor_adjustment(volumes, tariffs, house_category, area_m2, occupan
     neighbor_costs = {k: round(v * REALISM_UPLIFT, 2) for k, v in neighbor_costs.items()}
     return neighbor_costs
 
+def calculate_limassol_costs(electricity_kWh, month, use_max_other=False):
+    elec_rate = ELECTRICITY_HISTORY.get(month,0.2661)
+    electricity_cost = electricity_kWh * elec_rate * VAT_ELECTRICITY
+    water_cost = (WATER_BASE + WATER_VOLUME*WATER_TARIFF) * WATER_VAT
+
+    # Прочие расходы
+    internet = 20 * VAT_OTHER
+    phone = 20 * VAT_OTHER
+    iptv = 10 * VAT_OTHER
+    service = SERVICE_MAX if use_max_other else SERVICE_MIN
+
+    total = electricity_cost + water_cost + internet + phone + iptv + service
+    return {
+        "Электроэнергия": round(electricity_cost,2),
+        "Вода": round(water_cost,2),
+        "Интернет": round(internet,2),
+        "Телефон": round(phone,2),
+        "IPTV": round(iptv,2),
+        "Сервисный сбор": round(service,2),
+        "Итого": round(total,2)
+    }
+
 # ------------------------
-# Sidebar: параметры семьи
+# Sidebar: Параметры семьи и города
 # ------------------------
-st.sidebar.header("Параметры семьи")
+st.sidebar.header("Параметры")
+city = st.sidebar.selectbox("Город", ["Минск","Лимассол"])
 month = st.sidebar.selectbox("Месяц", list(range(1,13)),
                              format_func=lambda x: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"][x-1])
 area_m2 = st.sidebar.number_input("Площадь, м²", 10.0, 500.0, 90.0)
@@ -112,149 +146,55 @@ adults = st.sidebar.number_input("Взрослые", 0,10,2)
 children = st.sidebar.number_input("Дети", 0,10,2)
 occupants = adults + children
 
-# Средний сосед
-scenario = st.sidebar.selectbox("Сценарий поведения", list(SCENARIOS.keys()), index=1)
-behavior_factor = SCENARIOS[scenario]
-house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_COEFS.keys()), index=1)
-
-# Льгота пользователя
-st.sidebar.markdown("---")
-use_subsidy = st.sidebar.checkbox("Использовать льготный тариф (дополнительно к субсидированному)")
-if use_subsidy:
-    subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05)
+if city=="Минск":
+    scenario = st.sidebar.selectbox("Сценарий поведения", list(SCENARIOS.keys()), index=1)
+    behavior_factor = SCENARIOS[scenario]
+    house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_COEFS.keys()), index=1)
+    use_subsidy = st.sidebar.checkbox("Использовать льготный тариф (дополнительно к субсидированному)")
+    subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05) if use_subsidy else 1.0
 else:
-    subsidy_rate = 1.0
+    electricity_kWh = st.sidebar.number_input("Электроэнергия, кВт·ч", 0, 5000, 1048)
+    use_max_other = st.sidebar.checkbox("Использовать максимальные прочие расходы")
 
 # ------------------------
 # Ввод реальных расходов
 # ------------------------
-st.header("📊 Введите ваши реальные расходы за месяц (BYN)")
-with st.expander("Показать поля для ручного ввода"):
+st.header("📊 Ваши реальные расходы за месяц")
+if city=="Минск":
     user_real = {
-        "Электроэнергия": st.number_input("Электроэнергия BYN", min_value=0.0, value=0.0, step=1.0, format="%.2f"),
-        "Вода": st.number_input("Вода BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
-        "Канализация": st.number_input("Канализация BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
-        "Отопление": st.number_input("Отопление BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
-        "Фикс. платежи": st.number_input("Фикс. платежи BYN", min_value=0.0, value=0.0, step=0.1, format="%.2f")
+        "Электроэнергия": st.number_input("Электроэнергия BYN", 0.0, 10000.0, 0.0),
+        "Вода": st.number_input("Вода BYN", 0.0, 1000.0, 0.0),
+        "Канализация": st.number_input("Канализация BYN",0.0,1000.0,0.0),
+        "Отопление": st.number_input("Отопление BYN",0.0,1000.0,0.0),
+        "Фикс. платежи": st.number_input("Фикс. платежи BYN",0.0,1000.0,0.0)
     }
-user_real["Итого"] = round(sum(user_real[k] for k in CATEGORIES), 2)
+    user_real["Итого"] = round(sum(user_real[k] for k in CATEGORIES_MINSK),2)
+else:
+    user_real = {
+        "Электроэнергия": st.number_input("Электроэнергия €",0.0,5000.0,0.0),
+        "Вода": st.number_input("Вода €",0.0,500.0,0.0),
+        "Интернет": st.number_input("Интернет €",0.0,100.0,0.0),
+        "Телефон": st.number_input("Телефон €",0.0,100.0,0.0),
+        "IPTV": st.number_input("IPTV €",0.0,100.0,0.0),
+        "Сервисный сбор": st.number_input("Сервисный сбор €",0.0,500.0,0.0)
+    }
+    user_real["Итого"] = round(sum(user_real[k] for k in CATEGORIES_LIMASSOL[:-1]),2)
 
 # ------------------------
 # Расчёт идеального и среднего соседа
 # ------------------------
-ideal_vol = calculate_volumes(area_m2, occupants, 1.0, month=month)
-ideal_costs = calculate_costs_from_volumes(ideal_vol, {
-    "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY,
-    "water_BYN_per_m3": WATER_TARIFF,
-    "sewage_BYN_per_m3": SEWAGE_TARIFF,
-    "heating_BYN_per_Gcal": HEATING_SUBSIDY,
-    "fixed_fees_BYN": FIXED_FEES
-}, area_m2, occupants)
-
-# Тариф для среднего соседа с поведением + льгота
-neighbor_vol = calculate_volumes(area_m2, occupants, behavior_factor, month=month)
-neighbor_tariffs = {
-    "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY * subsidy_rate,
-    "water_BYN_per_m3": WATER_TARIFF,
-    "sewage_BYN_per_m3": SEWAGE_TARIFF,
-    "heating_BYN_per_Gcal": HEATING_SUBSIDY * subsidy_rate,
-    "fixed_fees_BYN": FIXED_FEES
-}
-neighbor_costs = apply_neighbor_adjustment(neighbor_vol, neighbor_tariffs, house_category, area_m2, occupants)
-
-# ------------------------
-# Визуализация расходов
-# ------------------------
-st.header("🏠 Сравнение расходов")
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.metric("Идеальный расчёт по нормативам, BYN", f"{ideal_costs['Итого']:.2f}")
-    st.metric("Ваши реальные расходы, BYN", f"{user_real['Итого']:.2f}")
-    st.metric("Средний сосед, BYN", f"{neighbor_costs['Итого']:.2f}")
-
-    ideal_total = ideal_costs.get("Итого", 0.0) or 0.0
-    neighbor_total = neighbor_costs.get("Итого", 0.0) or 0.0
-    real_total = user_real["Итого"]
-
-    diff_real = round((real_total/ideal_total-1)*100,1) if ideal_total>0 else 0.0
-    diff_neighbor = round((real_total/neighbor_total-1)*100,1) if neighbor_total>0 else 0.0
-
-    st.info(f"Ваши реальные расходы на {diff_real}% {'выше' if diff_real>0 else 'ниже'} нормативного расчёта.")
-    st.info(f"Ваши реальные расходы на {diff_neighbor}% {'выше' if diff_neighbor>0 else 'ниже'} среднего соседа.")
-
-with col2:
-    # Создаем DataFrame с детализацией расходов
-    detail_df = pd.DataFrame({
-        "Категория": CATEGORIES,
-        "Идеальный расчёт (BYN)": [ideal_costs[c] for c in CATEGORIES],
-        "Ваши реальные данные (BYN)": [user_real[c] for c in CATEGORIES],
-        "Средний сосед (BYN)": [neighbor_costs[c] for c in CATEGORIES],
-    })
-
-    # Стилизация таблицы с градиентом BuPu
-    styled_df = detail_df.style.format({
-        "Идеальный расчёт (BYN)": "{:.2f}",
-        "Ваши реальные данные (BYN)": "{:.2f}",
-        "Средний сосед (BYN)": "{:.2f}"
-    }).background_gradient(
-        subset=["Идеальный расчёт (BYN)", "Ваши реальные данные (BYN)", "Средний сосед (BYN)"],
-        cmap="BuPu"  # палитра BuPu
-    ).set_properties(**{
-        'text-align': 'center',
-        'font-size': '14px'
-    }).set_table_styles([
-        {'selector': 'th', 'props': [('text-align', 'center'), ('font-size', '15px'), ('background-color', '#f0f0f0')]}
-    ])
-
-    # Отображаем таблицу
-    st.dataframe(styled_df, height=280)
-
-
-# ------------------------
-# График расходов
-# ------------------------
-plot_df = pd.DataFrame({
-    "Категория": CATEGORIES * 3,
-    "Тип": (["Идеальный расчёт"] * len(CATEGORIES)) + (["Ваши реальные данные"] * len(CATEGORIES)) + (["Средний сосед"] * len(CATEGORIES)),
-    "BYN": [ideal_costs[c] for c in CATEGORIES] + [user_real[c] for c in CATEGORIES] + [neighbor_costs[c] for c in CATEGORIES]
-})
-fig = px.bar(plot_df, x="Категория", y="BYN", color="Тип", barmode="group",
-             color_discrete_map={"Идеальный расчёт":"#636EFA","Ваши реальные данные":"#00CC96","Средний сосед":"#EF553B"},
-             text="BYN")
-fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-fig.update_layout(yaxis_title="BYN / месяц", legend_title_text="Показатель", uniformtext_minsize=8)
-st.plotly_chart(fig, use_container_width=True)
-
-# ------------------------
-# Рекомендации
-# ------------------------
-st.header("💡 Рекомендации")
-emoji_map = {"Электроэнергия":"💡","Вода":"🚰","Отопление":"🔥","Канализация":"💧"}
-tips_map = {
-    "Электроэнергия":"используйте энергосберегающие лампы и приборы.",
-    "Вода":"установите аэраторы и проверьте трубы на протечки.",
-    "Отопление":"закрывайте окна и проверьте терморегуляторы.",
-    "Канализация":"контролируйте расход воды и исправность сантехники."
-}
-def get_color(diff):
-    if diff > 0: return "#FFCDD2"
-    else: return "#C8E6C9"
-
-cols = st.columns(4)
-for i, cat in enumerate(["Электроэнергия","Вода","Отопление","Канализация"]):
-    diff = user_real[cat] - ideal_costs[cat]
-    percent_over = round(diff/ideal_costs[cat]*100,1) if ideal_costs[cat]>0 else 0
-    if diff > 0:
-        msg = f"Перерасход {percent_over}% — {tips_map[cat]}"
-    else:
-        msg = "Расход в норме"
-    with cols[i]:
-        st.markdown(f"""
-            <div style='padding:12px; border-radius:10px; background-color:{get_color(diff)};
-                        font-size:0.9em; text-align:center;'>
-                <div style='font-size:1.5em'>{emoji_map[cat]}</div>
-                <strong>{cat}</strong>
-                <div style='margin-top:6px'>{msg}</div>
-            </div>
-        """, unsafe_allow_html=True)
+if city=="Минск":
+    ideal_vol = calculate_volumes(area_m2, occupants, 1.0, month=month)
+    ideal_costs = calculate_costs_from_volumes(ideal_vol,{
+        "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY,
+        "water_BYN_per_m3": WATER_TARIFF,
+        "sewage_BYN_per_m3": SEWAGE_TARIFF,
+        "heating_BYN_per_Gcal": HEATING_SUBSIDY,
+        "fixed_fees_BYN": FIXED_FEES
+    }, area_m2, occupants)
+    
+    neighbor_vol = calculate_volumes(area_m2, occupants, behavior_factor, month=month)
+    neighbor_tariffs = {
+        "electricity_BYN_per_kWh": ELECTRICITY_SUBSIDY * subsidy_rate,
+        "water_BYN_per_m3": WATER_TARIFF,
+        "sewage_BYN_per_m3
