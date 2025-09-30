@@ -1,0 +1,30 @@
+tariffs:
+  electricity: 0.2412       # BYN / kWh
+  water: 1.7858             # BYN / m³
+  sewage: 0.9586            # BYN / m³
+  heating: 24.7187          # BYN / Gcal
+  fixed: 5.0                # BYN / мес
+  internet: 0.0
+  phone: 0.0
+  iptv: 0.0
+  service: 0.0
+
+norms:
+  elec_base_kWh: 60.0
+  elec_per_person_kWh: 75.0
+  elec_per_m2_kWh: 0.5
+  water_per_person_m3: 4.5
+  hot_water_fraction: 0.6
+  heating_Gcal_per_m2_season_mid: 0.15
+  heating_season_months: 7.0
+
+house_coeffs:
+  Новый:
+    heating: 1.0
+    electricity: 1.0
+  Средний:
+    heating: 1.05
+    electricity: 1.05
+  Старый:
+    heating: 1.1
+    electricity: 1.05
