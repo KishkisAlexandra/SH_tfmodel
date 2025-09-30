@@ -29,9 +29,9 @@ HOUSE_COEFS = {
 REALISM_UPLIFT = 1.07
 
 CATEGORIES_MINSK = ["Электроэнергия", "Вода", "Канализация", "Отопление", "Фикс. платежи"]
-CATEGORIES_LIMASSOL = ["Электроэнергия", "Вода", "Отопление", "Интернет", "Телефон", "IPTV", "Сервисный сбор"]
+CATEGORIES_LIMASSOL = ["Электроэнергия", "Вода", "Интернет", "Телефон", "IPTV", "Сервисный сбор"]
 
-HEATING_MONTHS = [1,2,3,4,10,11,12]
+HEATING_MONTHS = [1,2,3,4,10,11,12]  # месяцы с отоплением
 
 # Минск тарифы
 ELECTRICITY_FULL = 0.2969
@@ -56,7 +56,7 @@ SERVICE_MIN_EUR = 45 * OTHER_NDS
 SERVICE_MAX_EUR = 125 * OTHER_NDS
 
 # ------------------------
-# Функции расчёта
+# Функции расчёта Минска
 # ------------------------
 def calculate_volumes(area_m2, occupants, behavior_factor, coeffs=DEFAULT_COEFFS, month=1):
     elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"]*occupants +
@@ -83,6 +83,7 @@ def calculate_costs_from_volumes(volumes, tariffs, area_m2=50, occupants=1, floo
     sewage_cost = volumes["Канализация"] * tariffs["sewage_BYN_per_m3"]
     heat_cost = volumes["Отопление"] * tariffs["heating_BYN_per_Gcal"]
 
+    # Фиксированные платежи
     maintenance_max = 0.0388
     lighting_max = 0.0249
     waste_norm = 0.2092
@@ -116,20 +117,22 @@ def apply_neighbor_adjustment(volumes, tariffs, house_category, area_m2, occupan
     neighbor_costs = {k: round(v * REALISM_UPLIFT, 2) for k, v in neighbor_costs.items()}
     return neighbor_costs
 
-def calculate_limassol_costs(area_m2, occupants, behavior_factor, electricity_kWh, use_max_other=False):
-    elec_cost = electricity_kWh * ELECTRICITY_EUR_PER_KWH * ELECTRICITY_NDS * behavior_factor
-    water_volume = 25.2 * behavior_factor
-    water_cost = (WATER_BASE_EUR + min(water_volume,40)*WATER_VOLUME_TARIFF_EUR) * WATER_NDS
-    other_cost = INTERNET_EUR + PHONE_EUR + IPTV_EUR + (SERVICE_MAX_EUR if use_max_other else SERVICE_MIN_EUR)
-    total = elec_cost + water_cost + other_cost
+# ------------------------
+# Функция расчёта Лимассола
+# ------------------------
+def calculate_limassol_bill(electricity_kwh, water_m3, use_max_service=False, behavior_factor=1.0):
+    electricity_cost = electricity_kwh * ELECTRICITY_EUR_PER_KWH * ELECTRICITY_NDS * behavior_factor
+    water_cost = (WATER_BASE_EUR + min(water_m3,40)*WATER_VOLUME_TARIFF_EUR) * WATER_NDS * behavior_factor
+    service_cost = SERVICE_MAX_EUR if use_max_service else SERVICE_MIN_EUR
+    other_costs = INTERNET_EUR + PHONE_EUR + IPTV_EUR + service_cost
+    total = electricity_cost + water_cost + other_costs
     return {
-        "Электроэнергия": round(elec_cost,2),
+        "Электроэнергия": round(electricity_cost,2),
         "Вода": round(water_cost,2),
-        "Отопление": 0.0,
-        "Интернет": INTERNET_EUR,
-        "Телефон": PHONE_EUR,
-        "IPTV": IPTV_EUR,
-        "Сервисный сбор": SERVICE_MAX_EUR if use_max_other else SERVICE_MIN_EUR,
+        "Интернет": round(INTERNET_EUR,2),
+        "Телефон": round(PHONE_EUR,2),
+        "IPTV": round(IPTV_EUR,2),
+        "Сервисный сбор": round(service_cost,2),
         "Итого": round(total,2)
     }
 
@@ -152,8 +155,9 @@ house_category = st.sidebar.selectbox("Категория дома (только
 st.sidebar.markdown("---")
 use_subsidy = st.sidebar.checkbox("Использовать льготный тариф (только Минск)")
 subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05) if use_subsidy else 1.0
-use_max_other = st.sidebar.checkbox("Использовать максимальный сервисный сбор (Лимассол)")
-electricity_kWh = st.sidebar.number_input("Потребление электроэнергии, кВт·ч (Лимассол)", 0.0, 10000.0, 500.0) if city=="Лимассол" else 0.0
+use_max_service = st.sidebar.checkbox("Использовать максимальный сервисный сбор (Лимассол)")
+electricity_kwh = st.sidebar.number_input("Потребление электроэнергии, кВт·ч (Лимассол)", 0.0, 10000.0, 500.0) if city=="Лимассол" else 0.0
+water_m3 = st.sidebar.number_input("Потребление воды, м³ (Лимассол)", 0.0, 1000.0, 25.2) if city=="Лимассол" else 0.0
 
 # ------------------------
 # Ввод реальных расходов
@@ -168,7 +172,7 @@ if city=="Минск":
     }
     user_real["Итого"] = round(sum(user_real[k] for k in CATEGORIES_MINSK),2)
 else:
-    user_real = calculate_limassol_costs(area_m2, occupants, behavior_factor, electricity_kWh, use_max_other)
+    user_real = calculate_limassol_bill(electricity_kwh, water_m3, use_max_service, behavior_factor)
 
 # ------------------------
 # Расчёт идеального и среднего соседа
@@ -220,85 +224,15 @@ with col1:
 with col2:
     detail_df = pd.DataFrame({
         "Категория": CATEGORIES,
-        "Идеальный расчёт": [ideal_costs.get(k,0) for k in CATEGORIES],
-        "Ваши реальные данные": [user_real.get(k,0) for k in CATEGORIES],
-        "Средний сосед": [neighbor_costs.get(k,0) for k in CATEGORIES]
+        "Идеальный расчёт": [ideal_costs.get(c,0.0) for c in CATEGORIES],
+        "Ваши реальные данные": [user_real.get(c,0.0) for c in CATEGORIES],
+        "Средний сосед": [neighbor_costs.get(c,0.0) for c in CATEGORIES]
     })
+
     styled_df = detail_df.style.format("{:.2f}").background_gradient(
         subset=["Идеальный расчёт","Ваши реальные данные","Средний сосед"], cmap="BuPu"
-    ).set_properties(**{'text-align':'center','font-size':'14px'}).set_table_styles([
-        {'selector':'th','props':[('text-align','center'),('font-size','15px'),('background-color','#f0f0f0')]}
-    ])
+    ).set_properties(**{'text-align': 'center','font-size': '14px'}).set_table_styles(
+        [{'selector': 'th', 'props': [('text-align', 'center'),('font-size', '15px'),('background-color','#f0f0f0')]}]
+    )
+
     st.dataframe(styled_df, height=280)
-
-# ------------------------
-# График расходов
-# ------------------------
-plot_df = pd.DataFrame({
-    "Категория": CATEGORIES * 3,
-    "Тип": (["Идеальный расчёт"] * len(CATEGORIES)) +
-           (["Ваши реальные данные"] * len(CATEGORIES)) +
-           (["Средний сосед"] * len(CATEGORIES)),
-    "Стоимость": [ideal_costs.get(c,0) for c in CATEGORIES] +
-                 [user_real.get(c,0) for c in CATEGORIES] +
-                 [neighbor_costs.get(c,0) for c in CATEGORIES]
-})
-
-fig = px.bar(
-    plot_df,
-    x="Категория",
-    y="Стоимость",
-    color="Тип",
-    barmode="group",
-    text="Стоимость",
-    color_discrete_map={
-        "Идеальный расчёт":"#636EFA",
-        "Ваши реальные данные":"#00CC96",
-        "Средний сосед":"#EF553B"
-    }
-)
-fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-fig.update_layout(yaxis_title="BYN / EUR", legend_title_text="Показатель", uniformtext_minsize=8)
-st.plotly_chart(fig, use_container_width=True)
-
-# ------------------------
-# Рекомендации
-# ------------------------
-st.header("💡 Рекомендации")
-if city == "Минск":
-    emoji_map = {"Электроэнергия":"💡","Вода":"🚰","Отопление":"🔥","Канализация":"💧"}
-    tips_map = {
-        "Электроэнергия":"используйте энергосберегающие лампы и приборы.",
-        "Вода":"установите аэраторы и проверьте трубы на протечки.",
-        "Отопление":"закрывайте окна и проверьте терморегуляторы.",
-        "Канализация":"контролируйте расход воды и исправность сантехники."
-    }
-else:
-    emoji_map = {"Электроэнергия":"💡","Вода":"🚰","Отопление":"🔥","Интернет":"🌐","Телефон":"📞","IPTV":"📺","Сервисный сбор":"💰"}
-    tips_map = {
-        "Электроэнергия":"оптимизируйте использование электроэнергии.",
-        "Вода":"контролируйте расход воды и исправность сантехники.",
-        "Отопление":"проверяйте терморегуляторы и закрывайте окна.",
-        "Интернет":"сравните тарифы и оптимизируйте скорость.",
-        "Телефон":"проверяйте тарифы на звонки.",
-        "IPTV":"отключайте лишние каналы или пакеты.",
-        "Сервисный сбор":"контролируйте расходы на сервисные услуги."
-    }
-
-def get_color(diff):
-    return "#FFCDD2" if diff > 0 else "#C8E6C9"
-
-cols = st.columns(min(len(CATEGORIES), 4))
-for i, cat in enumerate(CATEGORIES):
-    diff = user_real.get(cat,0) - ideal_costs.get(cat,0)
-    percent_over = round(diff / ideal_costs.get(cat,1) * 100,1)
-    msg = f"Перерасход {percent_over}% — {tips_map[cat]}" if diff > 0 else "Расход в норме"
-    with cols[i % 4]:
-        st.markdown(f"""
-            <div style='padding:12px; border-radius:10px; background-color:{get_color(diff)};
-                        font-size:0.9em; text-align:center;'>
-                <div style='font-size:1.5em'>{emoji_map[cat]}</div>
-                <strong>{cat}</strong>
-                <div style='margin-top:6px'>{msg}</div>
-            </div>
-        """, unsafe_allow_html=True)
