@@ -1,13 +1,13 @@
 tariffs:
-  electricity: 0.2412       # BYN / kWh
-  water: 1.7858             # BYN / m³
-  sewage: 0.9586            # BYN / m³
-  heating: 24.7187          # BYN / Gcal
-  fixed: 5.0                # BYN / мес
-  internet: 0.0
-  phone: 0.0
-  iptv: 0.0
-  service: 0.0
+  electricity_BYN_per_kWh: 0.2412
+  water_BYN_per_m3: 1.7858
+  sewage_BYN_per_m3: 0.9586
+  heating_BYN_per_Gcal: 24.7187
+  fixed_fees_BYN: 5.0
+  internet_BYN: 0.0
+  phone_BYN: 0.0
+  iptv_BYN: 0.0
+  service_BYN: 0.0
 
 norms:
   elec_base_kWh: 60.0
