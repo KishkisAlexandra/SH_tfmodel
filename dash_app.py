@@ -179,15 +179,48 @@ if city == "Лимасол":
 
 
 
+# Валюта для отображения
+currency_label = "BYN" if city == "Минск" else "€"
+
 # ------------------------
 # Ввод реальных расходов
 # ------------------------
-st.header("📊 Введите ваши реальные расходы за месяц (BYN)")
+st.header(f"📊 Введите ваши реальные расходы за месяц ({currency_label})")
 with st.expander("Показать поля для ручного ввода"):
-    user_real = {}
-    for c in CATEGORIES:
-        user_real[c] = st.number_input(f"{c} BYN", min_value=0.0, value=0.0, step=1.0, format="%.2f")
-user_real["Итого"] = round(sum(user_real[c] for c in CATEGORIES), 2)
+    user_real = {
+        "Электроэнергия": st.number_input(f"Электроэнергия {currency_label}", min_value=0.0, value=0.0, step=1.0, format="%.2f"),
+        "Вода": st.number_input(f"Вода {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f")
+    }
+    if city == "Лимасол":
+        # Лимасол: фиксированные категории
+        user_real.update({
+            "Интернет": st.number_input(f"Интернет {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+            "Телефон": st.number_input(f"Телефон {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+            "IPTV": st.number_input(f"IPTV {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+            "Обслуживание": st.number_input(f"Обслуживание {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+            "Аренда": st.number_input(f"Аренда {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f")
+        })
+    else:
+        # Минск: стандартные категории
+        user_real.update({
+            "Канализация": st.number_input(f"Канализация {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+            "Отопление": st.number_input(f"Отопление {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f"),
+            "Фикс. платежи": st.number_input(f"Фикс. платежи {currency_label}", min_value=0.0, value=0.0, step=0.1, format="%.2f")
+        })
+
+user_real["Итого"] = round(sum(user_real[k] for k in (CATEGORIES if city=="Лимасол" else ["Электроэнергия","Вода","Канализация","Отопление","Фикс. платежи"])), 2)
+
+# ------------------------
+# Метрики сравнения
+# ------------------------
+st.header(f"🏠 Сравнение расходов ({currency_label})")
+col1, col2 = st.columns([2,1])
+
+with col1:
+    st.metric(f"Идеальный расчёт по нормативам, {currency_label}", f"{ideal_costs['Итого']:.2f}")
+    st.metric(f"Ваши реальные расходы, {currency_label}", f"{user_real['Итого']:.2f}")
+    st.metric(f"Средний сосед, {currency_label}", f"{neighbor_costs['Итого']:.2f}")
+
 
 # ------------------------
 # Расчёт идеального и среднего соседа
