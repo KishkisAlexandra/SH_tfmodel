@@ -1,13 +1,13 @@
 tariffs:
-  electricity: 0.2661       # EUR / kWh
-  water: 1.3248             # EUR / m³
-  sewage: 1.0               # EUR / m³ (условно)
-  heating: 0.0              # нет централизованного отопления
-  fixed: 0.0
-  internet: 20.0            # EUR / мес
-  phone: 20.0               # EUR / мес
-  iptv: 10.0                # EUR / мес
-  service: 45.0             # EUR / мес (Service Min)
+  electricity_BYN_per_kWh: 0.2661   # EUR / kWh
+  water_BYN_per_m3: 1.3248          # EUR / m³
+  sewage_BYN_per_m3: 1.0            # EUR / m³ (условно)
+  heating_BYN_per_Gcal: 0.0         # нет централизованного отопления
+  fixed_fees_BYN: 0.0
+  internet_BYN: 20.0
+  phone_BYN: 20.0
+  iptv_BYN: 10.0
+  service_BYN: 45.0
 
 norms:
   elec_base_kWh: 60.0
