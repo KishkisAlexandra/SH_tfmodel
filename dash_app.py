@@ -26,10 +26,9 @@ HOUSE_COEFS = {
     "Старый": {"heating": 1.1, "electricity": 1.05},
 }
 REALISM_UPLIFT = 1.07
+HEATING_MONTHS = [1,2,3,4,10,11,12]
 
-HEATING_MONTHS = [1,2,3,4,10,11,12]  # месяцы, в которых считается отопление
-
-# Тарифы Минска
+# Минск тарифы
 ELECTRICITY_FULL = 0.2969
 ELECTRICITY_SUBSIDY = 0.2412
 HEATING_FULL = 134.94
@@ -39,7 +38,7 @@ SEWAGE_TARIFF = 0.9586
 FIXED_FEES = 5.0
 
 # ------------------------
-# Sidebar: параметры семьи
+# Sidebar
 # ------------------------
 st.sidebar.header("Параметры семьи")
 city = st.sidebar.selectbox("Город", ["Минск", "Лимасол"])
@@ -56,21 +55,18 @@ house_category = st.sidebar.selectbox("Категория дома", list(HOUSE_
 
 st.sidebar.markdown("---")
 use_subsidy = st.sidebar.checkbox("Использовать льготный тариф (дополнительно к субсидированному)")
-if use_subsidy:
-    subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05)
-else:
-    subsidy_rate = 1.0
+subsidy_rate = st.sidebar.slider("Доля от полного тарифа", 0.0, 1.0, 0.2, 0.05) if use_subsidy else 1.0
 
 # ------------------------
-# Категории расходов по городу
+# Категории
 # ------------------------
 if city == "Минск":
     CATEGORIES = ["Электроэнергия", "Вода", "Канализация", "Отопление", "Фикс. платежи"]
 elif city == "Лимасол":
-    CATEGORIES = ["Электроэнергия", "Вода", "Интернет", "Телефон", "IPTV"]
+    CATEGORIES = ["Электроэнергия", "Вода", "Интернет", "Телефон", "IPTV", "Обслуживание", "Аренда"]
 
 # ------------------------
-# Функции расчёта
+# Функции расчёта Минск
 # ------------------------
 def calculate_volumes(area_m2, occupants, behavior_factor, coeffs=DEFAULT_COEFFS, month=1):
     elec = (coeffs["elec_base_kWh"] + coeffs["elec_per_person_kWh"]*occupants +
@@ -97,7 +93,6 @@ def calculate_costs_from_volumes(volumes, tariffs, area_m2=50, occupants=1, floo
     sewage_cost = volumes["Канализация"] * tariffs["sewage_BYN_per_m3"]
     heat_cost = volumes["Отопление"] * tariffs["heating_BYN_per_Gcal"]
 
-    # Фиксированные платежи
     maintenance_max = 0.0388
     lighting_max = 0.0249
     waste_norm = 0.2092
@@ -109,7 +104,6 @@ def calculate_costs_from_volumes(volumes, tariffs, area_m2=50, occupants=1, floo
     waste_cost = waste_norm * occupants
     capital_repair_cost = area_m2 * capital_repair_rate
     elevator_cost = elevator_max * occupants if has_elevator and floor >= 2 else 0.0
-
     fixed = maintenance_cost + lighting_cost + waste_cost + capital_repair_cost + elevator_cost
 
     costs = {
@@ -125,63 +119,62 @@ def calculate_costs_from_volumes(volumes, tariffs, area_m2=50, occupants=1, floo
 def apply_neighbor_adjustment(volumes, tariffs, house_category, area_m2, occupants, floor=1, has_elevator=True):
     coefs = HOUSE_COEFS.get(house_category, {"heating":1.0,"electricity":1.0})
     vol_adj = volumes.copy()
-    vol_adj["Электроэнергия"] = vol_adj["Электроэнергия"] * coefs["electricity"]
-    vol_adj["Отопление"] = vol_adj["Отопление"] * coefs["heating"]
+    vol_adj["Электроэнергия"] *= coefs["electricity"]
+    vol_adj["Отопление"] *= coefs["heating"]
     neighbor_costs = calculate_costs_from_volumes(vol_adj, tariffs, area_m2, occupants, floor, has_elevator)
-    neighbor_costs = {k: round(v * REALISM_UPLIFT, 2) for k, v in neighbor_costs.items()}
-    return neighbor_costs
+    return {k: round(v * REALISM_UPLIFT, 2) for k, v in neighbor_costs.items()}
 
 # ------------------------
-# Функции для Лимасола
+# Функции расчёта Лимасол (EUR)
 # ------------------------
 if city == "Лимасол":
-    WATER_BASE = 22
-    WATER_BRACKETS = [
-        (1, 40, 0.9),
-        (41, 80, 1.43),
-        (81, 120, 2.45),
-        (121, float('inf'), 5.0)
-    ]
     VAT_WATER = 0.05
     VAT_ELEC = 0.19
     INTERNET_TARIFF = 20
     PHONE_TARIFF = 20
     IPTV_TARIFF = 10
     VAT_FIXED = 0.19
+    SERVICE_MIN = 45
+    SERVICE_MAX = 125
+    RENT = 4600  # фиксированная сумма в EUR
 
     def calculate_water_limassol(consumption_m3):
-        cost = WATER_BASE
+        cost = 22
         remaining = consumption_m3
-        for lower, upper, rate in WATER_BRACKETS:
-            if remaining <= 0:
-                break
-            apply_m3 = min(upper - lower + 1, remaining)
+        brackets = [(1,40,0.9),(41,80,1.43),(81,120,2.45),(121,float('inf'),5.0)]
+        for lower, upper, rate in brackets:
+            if remaining <= 0: break
+            apply_m3 = min(upper-lower+1, remaining)
             cost += apply_m3 * rate
             remaining -= apply_m3
-        cost *= 1 + VAT_WATER
-        return round(cost, 2)
+        return round(cost*(1+VAT_WATER),2)
 
     def calculate_fixed_limassol():
-        internet = INTERNET_TARIFF * (1 + VAT_FIXED)
-        phone = PHONE_TARIFF * (1 + VAT_FIXED)
-        iptv = IPTV_TARIFF * (1 + VAT_FIXED)
         return {
-            "Интернет": round(internet,2),
-            "Телефон": round(phone,2),
-            "IPTV": round(iptv,2)
+            "Интернет": round(INTERNET_TARIFF*(1+VAT_FIXED),2),
+            "Телефон": round(PHONE_TARIFF*(1+VAT_FIXED),2),
+            "IPTV": round(IPTV_TARIFF*(1+VAT_FIXED),2)
         }
 
+    def calculate_service_limassol():
+        avg_service = (SERVICE_MIN + SERVICE_MAX)/2
+        return round(avg_service*(1+VAT_FIXED),2)
+
     def calculate_costs_limassol(volumes):
-        elec_cost = volumes["Электроэнергия"] * ELECTRICITY_SUBSIDY * (1 + VAT_ELEC)
+        elec_cost = volumes["Электроэнергия"] * 0.2661 * (1+VAT_ELEC)
         water_cost = calculate_water_limassol(volumes["Вода"])
         fixed_costs = calculate_fixed_limassol()
+        service_cost = calculate_service_limassol()
         costs = {
             "Электроэнергия": round(elec_cost,2),
-            "Вода": round(water_cost,2),
-            **fixed_costs
+            "Вода": water_cost,
+            **fixed_costs,
+            "Обслуживание": service_cost,
+            "Аренда": RENT
         }
         costs["Итого"] = round(sum(costs.values()),2)
         return costs
+
 
 # ------------------------
 # Ввод реальных расходов
